@@ -53,7 +53,7 @@ if __name__ == "__main__":
     try:
         # 1. 데이터 수집
         df = collect_national_avg_price()
-        print(df.head())
+        #print(df.head())
         
         # 2. 업로드
         upload_to_minio(df)
