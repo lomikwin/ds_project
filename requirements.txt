@@ -1,0 +1,9 @@
+pandas
+numpy
+pyarrow
+duckdb
+duckdb-engine
+jupysql
+python-dotenv
+ipykernel
+jupyter

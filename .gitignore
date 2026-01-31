@@ -1,0 +1,6 @@
+.env
+practice_*
+sample_data.parquet
+/playground
+__pycache__
+*.pyc
