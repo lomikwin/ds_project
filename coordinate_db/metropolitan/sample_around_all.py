@@ -5,7 +5,7 @@ from dotenv import load_dotenv , find_dotenv
 
 # .env 파일에서 API 키 로드
 load_dotenv(find_dotenv())
-API_KEY = os.getenv('OPINET_API_KEY')
+API_KEY = os.getenv('OPINET_API_KEY_1')
 
 def test_gas_station_collection(lat, lon, radius=10000):
     """
