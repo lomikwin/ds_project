@@ -7,7 +7,7 @@ from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv()) #상위폴더에서 env파일 참조
-API_KEY = os.getenv('OPINET_API_KEY')
+API_KEY = os.getenv('OPINET_API_KEY_1')
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
