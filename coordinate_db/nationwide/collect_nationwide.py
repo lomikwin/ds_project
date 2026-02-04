@@ -9,7 +9,7 @@ from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
-API_KEY = os.getenv('OPINET_API_KEY')
+API_KEY = os.getenv('OPINET_API_KEY_4')
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
@@ -114,14 +114,14 @@ def upload_to_minio(df):
 if __name__ == "__main__":
     try:
         #==============수동으로 API키를 돌리기 위해 새로 세팅한 영역============
-        START_1 = 2900 
-        END_1 = 4300 
-        START_2 = 4300
-        END_2 = 5800
+        START_1 = 5800 
+        END_1 = 6500
+        #START_2 = 4300
+        #END_2 = 5800
         #=================================================================
         api_key1_cover = master_table.iloc[START_1:END_1]
         #api_key2_cover = master_table.iloc[START_2:END_2]
-        df = collect_by_gasstation(api_key2_cover) #api_key1_cover) #(api_key2_cover)
+        df = collect_by_gasstation(api_key1_cover) #api_key1_cover) #(api_key2_cover)
         
         if not df.empty:
             print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")
