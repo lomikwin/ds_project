@@ -7,7 +7,7 @@ from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv()) #상위폴더에서 env파일 참조
-API_KEY = os.getenv('OPINET_API_KEY_1')
+API_KEY = os.getenv('OPINET_API_KEY_4')
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
@@ -100,7 +100,7 @@ def upload_to_minio_backfill(final_combined_df):
 if __name__ == "__main__":
     try:
         # 1. 데이터 수집
-        df = collect_national_avg_price_backfill('20000107' , '20101231')
+        df = collect_national_avg_price_backfill('20000107' , '20260123')
         #print(df.head())
         
         # 2. 업로드
