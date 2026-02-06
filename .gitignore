@@ -7,3 +7,4 @@ __pycache__
 *.html
 petroleum_project.db
 petroleum_project.db.wal
+.cursorrules

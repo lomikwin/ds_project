@@ -114,14 +114,15 @@ def upload_to_minio(df):
 if __name__ == "__main__":
     try:
         #==============수동으로 API키를 돌리기 위해 새로 세팅한 영역============
-        START_1 = 5800 
-        END_1 = 6500
-        #START_2 = 4300
-        #END_2 = 5800
+        START_1 = 0 
+        END_1 = 1500
+        #START_2 = 1500
+        #END_2 = 3000
         #=================================================================
         api_key1_cover = master_table.iloc[START_1:END_1]
         #api_key2_cover = master_table.iloc[START_2:END_2]
-        df = collect_by_gasstation(api_key1_cover) #api_key1_cover) #(api_key2_cover)
+        print(f"--- [모드 변경] 고급휘발유(B034) Nationwide 수색을 시작합니다 ({START_1}~{END_1}) ---")
+        df = collect_by_gasstation(api_key1_cover , prodcd='B034') #api_key1_cover) #(api_key2_cover)
         
         if not df.empty:
             print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")
