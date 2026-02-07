@@ -104,7 +104,7 @@ def upload_to_minio(df):
     partition_date = df['part_dt'].iloc[0]
     timestamp = datetime.now().strftime('%H%M%S')
     file_name = f"data_{timestamp}.parquet"
-    path = f"s3://petroleum-project/by_gasstation/part_dt={partition_date}/{file_name}"
+    path = f"s3://petroleum-project/coord_validation_logs/part_dt={partition_date}/{file_name}"
 
     
     con.sql("SELECT * FROM df").write_parquet(path)

@@ -8,6 +8,7 @@ from datetime import datetime
 from dotenv import load_dotenv , find_dotenv
 
 # 1. MINIO 접속 정보
+load_dotenv(find_dotenv())
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
@@ -87,17 +88,17 @@ def target_coordinates():
     master_table = duckdb.read_parquet(master_table_path).df()
 
     # 5. 참조테이블 2번 로드 -- 나중에 연산에 의해서 수집될 테이블 참조
-    gasstation_path = "s3://petroleum-project/by_gasstation/*/*"
+    gasstation_path = "s3://petroleum-project/coord_validation_logs/*/*.parquet"
 
     # 6.최종 결과 저장할 경로 및 파일명 , 파티션 없이 최신성만 유지할 예정
     result_path = "s3://petroleum-project/target_coordinates/target_coordinates.parquet"
     
     # 7. SQL 튜닝 - from의 path 부분을 채움.
-    SQL_CALCULATION = SQL_CALCULATION.format(gasstation_path = gasstation_path)
+    sql_pathed = SQL_CALCULATION.format(gasstation_path = gasstation_path)
     
-    con.sql(SQL_CALCULATION).write_parquet(result_path)
+    con.sql(sql_pathed).write_parquet(result_path)
 
-    
+    now = datetime.now()
     print(f"---[{now.strftime('%Y%m%d')}-완료]target_coordinates 생성 완료")
 
 if __name__ == "__main__":
@@ -106,3 +107,5 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f" [에러] 작업 중 오류 발생: {e}")
+
+#petroleum-project/coord_validation_logs
