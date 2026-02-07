@@ -7,3 +7,4 @@ jupysql
 python-dotenv
 ipykernel
 jupyter
+requests
