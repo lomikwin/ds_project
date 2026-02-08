@@ -1,0 +1,5 @@
+#time table for synology scheduler
+time,name,notes 
+00:30,git hub auto pull,synchronizing codes with my github repository
+00:55,target_coordinates,refreshing whitelist for target_coordinates
+01:00,Collect_National_Avg,collecting daily average price of each fuels 
