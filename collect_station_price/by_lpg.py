@@ -33,14 +33,14 @@ target_coordinates = duckdb.read_parquet(target_coordinates_path).df()
 
 
 
-def by_gasoline(target_df ):
+def by_lpg(target_df ):
     
     #최적화된 좌표별로 api호출을 하고 이를 통해 주유소별 휘발유 가격 정보를 수집합니다.
     #prodcd: 유종 코드 (B027:휘발유, D047:경유, B034:고급휘발유, K015:LPG , C004:실내등유)
     
     by_station = []
     key_index = 5 #5번 키부터 사용시작
-    for i , (index, row) in enumerate(target_df[target_df['is_gasoline_check']==1].iterrows()) : #target_coordinates 폴더에서 check가 1인 좌표만 탐색
+    for i , (index, row) in enumerate(target_df[target_df['is_lpg_check']==1].iterrows()) : #target_coordinates 폴더에서 check가 1인 좌표만 탐색
         # 이 부분은 다른 로직과 상관없이 걍 step 표기용 부분.
         if i%100 == 0:
             print(f"[{datetime.now().strftime('%H:%M:%S')}]: {i}번째 Dot의 주유소를 수집중입니다.")
@@ -55,7 +55,7 @@ def by_gasoline(target_df ):
                     "x": row["katec_x"],
                     "y": row["katec_y"],
                     "radius": 5000,
-                    "prodcd": "B027" , #"B027",  # 휘발유 기준 (경유는 D047)
+                    "prodcd": "K015" , 
                     "sort": 1          # 1: 가격순, 2: 거리순
                     }
                     response = requests.get(url, params=params)
@@ -85,7 +85,7 @@ def by_gasoline(target_df ):
                     station["GIS_X_COOR"],
                     station["GIS_Y_COOR"],
                     station["DISTANCE"],
-                    params["prodcd"], # 나중에 함수로 만들때는 이걸 인자로 넣도록 하고, 일단 api호출값에서는 이 prodcd가 없어서 이걸 수기로 테이블에 넣는 방법을 택했다.
+                    params["prodcd"], 
                     station["PRICE"]
                     ))
         except Exception as e:
@@ -110,7 +110,7 @@ def upload_to_minio(df):
     partition_date = df['part_dt'].iloc[0]
     timestamp = datetime.now().strftime('%H%M%S')
     file_name = f"data_{timestamp}.parquet"
-    table_name = "by_gasoline"
+    table_name = "by_lpg"
     path = f"s3://petroleum-project/{table_name}/part_dt={partition_date}/{file_name}"
 
     
@@ -120,7 +120,7 @@ def upload_to_minio(df):
 
 if __name__ == "__main__":
     try:
-        df = by_gasoline(target_coordinates) 
+        df = by_lpg(target_coordinates) 
         
         if not df.empty:
             print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")

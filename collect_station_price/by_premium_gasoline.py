@@ -35,12 +35,11 @@ target_coordinates = duckdb.read_parquet(target_coordinates_path).df()
 
 def by_premium_gasoline(target_df ):
     
-    #최적화된 좌표별로 api호출을 하고 이를 통해 주유소별 고급휘발유 가격 정보를 수집합니다.
+    #최적화된 좌표별로 api호출을 하고 이를 통해 주유소별 휘발유 가격 정보를 수집합니다.
     #prodcd: 유종 코드 (B027:휘발유, D047:경유, B034:고급휘발유, K015:LPG , C004:실내등유)
     
     by_station = []
     key_index = 5 #5번 키부터 사용시작
-
     for i , (index, row) in enumerate(target_df[target_df['is_premium_gasoline_check']==1].iterrows()) : #target_coordinates 폴더에서 check가 1인 좌표만 탐색
         # 이 부분은 다른 로직과 상관없이 걍 step 표기용 부분.
         if i%100 == 0:
@@ -56,22 +55,24 @@ def by_premium_gasoline(target_df ):
                     "x": row["katec_x"],
                     "y": row["katec_y"],
                     "radius": 5000,
-                    "prodcd": "B034" , #"B027",  # 휘발유 기준 (경유는 D047)
+                    "prodcd": "B034" , 
                     "sort": 1          # 1: 가격순, 2: 거리순
                     }
                     response = requests.get(url, params=params)
                     response.raise_for_status() # 에러 발생 시 예외 처리
                     data = response.json()
-                    message = data.get('RESULT',{}).get('MESSAGE')
-                
-                    if message and "한도" in message :
-                        print("한도 초과 키를 교체합니다")
+                    api_check = data.get('RESULT',{}).get('OIL')
+
+                    if api_check == [] :
+                        print("API 한도 초과! API 키를 교체합니다")
                         key_index -= 1
                         continue
                     else:
-                        oil_list = data.get('RESULT', {}).get('OIL', [])
+                        oil_list = api_check
                         success_flag = True
-            
+            if not success_flag and key_index < 0 :
+                print("모든 API키의 한도가 초과되었습니다. 작업을 중단합니다.")
+                break
             for station in oil_list:
                 by_station.append ((
                     row["katec_x"] , 
@@ -84,7 +85,7 @@ def by_premium_gasoline(target_df ):
                     station["GIS_X_COOR"],
                     station["GIS_Y_COOR"],
                     station["DISTANCE"],
-                    params["prodcd"], # 나중에 함수로 만들때는 이걸 인자로 넣도록 하고, 일단 api호출값에서는 이 prodcd가 없어서 이걸 수기로 테이블에 넣는 방법을 택했다.
+                    params["prodcd"], 
                     station["PRICE"]
                     ))
         except Exception as e:
@@ -93,6 +94,7 @@ def by_premium_gasoline(target_df ):
               'uni_cd' , 'brand_cd',
             'station_name' , 'station_x' , 'station_y' , 'distance' , 'fuel_type' , 'price' ]
     final_result = pd.DataFrame(by_station , columns=columns)
+    final_result = final_result.drop_duplicates(subset = 'uni_cd' , keep = 'first')
     
 
     now = datetime.now()
