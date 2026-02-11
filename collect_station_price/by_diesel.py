@@ -40,16 +40,19 @@ def by_diesel(target_df ):
     
     by_station = []
     key_index = 5 #5번 키부터 사용시작
-    for i , (index, row) in enumerate(target_df[target_df['is_gasoline_check']==1].iterrows()) : #target_coordinates 폴더에서 check가 1인 좌표만 탐색
-        # 이 부분은 다른 로직과 상관없이 걍 step 표기용 부분.
-        if i%100 == 0:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}]: {i}번째 Dot의 주유소를 수집중입니다.")
-        # API 호출횟수가 초과하면 그 에러값을 바탕으로 API키 교체
+    null_cnt = 0
+    first_failed_index = None
+    target_df_filltered = target_df[target_df['is_gasoline_check']==1]
+    i = 0
+    while i < len(target_df_filltered):
+        if i%100 == 0 :
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {i}번째 좌표에 대해서 호출 진행중.")
+        row = target_df_filltered.iloc[i]
         success_flag = False
         oil_list = []
-        try:
-            while not success_flag and key_index>= 0:
-                    params = {
+        try :
+            while not success_flag and key_index >= 0:
+                params = {
                     "code": os.getenv(OPINET_API_KEY_GROUP[key_index]),
                     "out": "json",
                     "x": row["katec_x"],
@@ -58,20 +61,33 @@ def by_diesel(target_df ):
                     "prodcd": "D047" , #"B027",  # 휘발유 기준 (경유는 D047)
                     "sort": 1          # 1: 가격순, 2: 거리순
                     }
-                    response = requests.get(url, params=params)
-                    response.raise_for_status() # 에러 발생 시 예외 처리
-                    data = response.json()
-                    api_check = data.get('RESULT',{}).get('OIL')
+                response = requests.get(url, params=params)
+                response.raise_for_status() # 에러 발생 시 예외 처리
+                data = response.json()
+                api_call = data.get('RESULT',{}).get('OIL')
 
-                    if api_check == [] :
-                        print("API 한도 초과! API 키를 교체합니다")
+                if api_call != []: #성공
+                    oil_list = api_call
+                    success_flag = True # while 루프를 깨고 전진
+                    null_cnt = 0
+                    i += 1
+                
+                else :
+                    null_cnt += 1
+                    if null_cnt == 1 :
+                        first_failed_index = i 
+                    if null_cnt >= 10:
+                        print (f"공백응답[] 10회 누적. API키를 교체합니다. {first_failed_index}번으로 돌아갑니다.")
                         key_index -= 1
-                        continue
+                        null_cnt = 0
+                        i = first_failed_index
+                        break #새로운 키로 바로 찔러보도록 while loop 탈출
                     else:
-                        oil_list = api_check
+                        print(f"[주의] {i}번째 좌표 공백 {null_cnt}/10")
                         success_flag = True
-            if not success_flag and key_index < 0 :
-                print("모든 API키의 한도가 초과되었습니다. 작업을 중단합니다.")
+                        i += 1
+            if key_index < 0:
+                print("[주의]API키 전부 소진. 수집을 멈추고 저장합니다.")
                 break
             for station in oil_list:
                 by_station.append ((
@@ -88,6 +104,7 @@ def by_diesel(target_df ):
                     params["prodcd"], 
                     station["PRICE"]
                     ))
+            
         except Exception as e:
             print(f"[ERROR] API 호출 중 오류 발생: {e}")
     columns =['katec_x' , 'katec_y' , #'dot_lat' , 'dot_lon' , 
@@ -115,7 +132,7 @@ def upload_to_minio(df):
 
     
     duckdb.sql("SELECT * FROM df").write_parquet(path)
-    print(f"--- [MinIO 완료] {partition_date} 데이터가 저장되었습니다. ---")
+    print(f"--- [MinIO 완료, ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {partition_date} 데이터가 저장되었습니다. ---")
 
 
 if __name__ == "__main__":
@@ -123,7 +140,7 @@ if __name__ == "__main__":
         df = by_diesel(target_coordinates) 
         
         if not df.empty:
-            print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]{len(df)}개의 주유소를 발견 업로드를 시작합니다")
             upload_to_minio(df)
         else:
             print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")
