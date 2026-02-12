@@ -1,5 +1,9 @@
 #time table for synology scheduler
-time,name,notes 
-00:30,git hub auto pull,synchronizing codes with my github repository
-00:55,target_coordinates,refreshing whitelist for target_coordinates
-01:00,Collect_National_Avg,collecting daily average price of each fuels 
+time,schedule_name,py_name,path,notes 
+00:30,git hub auto pull,,,synchronizing codes with my github repository
+00:55,target_coordinates,target_coordinates.py,/volume2/ds_project/target_coordinates,refreshing whitelist for target_coordinates
+01:00,Collect_National_Avg,colleb_national_avg.py,/volume2/ds_project/collect_national_avg_price,collecting daily average price of each fuels 
+01:30,by_gasoline,by_gasoline.py,/volume2/ds_project/collect_station_price,collect daily gasoline price by stations in Korea.
+01:45,by_diesel,by_diesel.py,/volume2/ds_project/collect_station_price,collect daily diesel price by stations in Korea.
+02:00,by_premium_gasoline,by_premium_gasoline.py,/volume2/ds_project/collect_station_price,collect daily premium gasoline price by stations in Korea.
+02:15,by_lpg,by_lpg.py,/volume2/ds_project/collect_station_price,collect daily lpg price by stations in Korea.

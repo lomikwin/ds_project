@@ -140,7 +140,7 @@ if __name__ == "__main__":
         df = by_gasoline(target_coordinates) 
         
         if not df.empty:
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {len(df)}개의 주유소를 발견 업로드를 시작합니다")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {len(df)}개의 주유소의 휘발유 가격을 발견. 업로드를 시작합니다")
             upload_to_minio(df)
         else:
             print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")
