@@ -1,4 +1,3 @@
-### No need to make this very simmilar py file. But for saving history. I duplicated py file for only collecting white list dots for LPG
 import pandas as pd 
 import pyarrow
 import duckdb
@@ -7,25 +6,28 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv , find_dotenv
 
-
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
-API_KEY = os.getenv('OPINET_API_KEY_3')
-MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT')
+OPINET_API_KEY_GROUP = ['OPINET_API_KEY_1', 'OPINET_API_KEY_2', 'OPINET_API_KEY_3', 
+                        'OPINET_API_KEY_4', 'OPINET_API_KEY_5', 'OPINET_API_KEY_6' ] # OPINET_API_KEY가 여러개로 늘어날 수도 있으니까 list로 관리
+# API_KEY = os.getenv('OPINET_API_KEY_1') --> 이건 이제 동적변수가 되어야 하므로 함수 안으로 집어넣기
+MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT') 
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
 
-# API 기본 호출 URL
-url = "https://www.opinet.co.kr/api/aroundAll.do"
-#os 라이브러리를 활용하여, geographic_master_table.parquet의 절대 경로를 찾음.
-base_path = os.path.dirname(os.path.abspath(__file__))
+#2. duckdb를 통한 s3 읽기 설정
+duckdb.execute("INSTALL httpfs; LOAD httpfs;")
+duckdb.execute(f"SET s3_endpoint='{MINIO_ENDPOINT}';")
+duckdb.execute(f"SET s3_access_key_id='{MINIO_ACCESS_KEY}';")
+duckdb.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
+duckdb.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
 
 # 이 절대경로에다가 ~.parquet 파일을 붙여서 경로를 만듬
 master_table_path = os.path.join(base_path, "nationwide_master_grid_katec.parquet")
 
 master_table = duckdb.read_parquet(master_table_path).df()
-
-#이제 API키를 2개를 갖고 내가 돌려가면서 써볼것이기에 이 부분을 미리 사전에 반영해둠. 
+#3. API 기본 호출 URL
+url = "https://www.opinet.co.kr/api/aroundAll.do"
 
 def collect_by_gasstation(target_df , prodcd="B027"):
     """
@@ -105,7 +107,7 @@ def upload_to_minio(df):
     partition_date = df['part_dt'].iloc[0]
     timestamp = datetime.now().strftime('%H%M%S')
     file_name = f"data_{timestamp}.parquet"
-    path = f"s3://petroleum-project/coord_validation_logs/part_dt={partition_date}/{file_name}"
+    path = f"s3://petroleum-project/coordinates/validation_logs/part_dt={partition_date}/{file_name}"
 
     
     con.sql("SELECT * FROM df").write_parquet(path)
@@ -115,15 +117,15 @@ def upload_to_minio(df):
 if __name__ == "__main__":
     try:
         #==============수동으로 API키를 돌리기 위해 새로 세팅한 영역============
-        #START_1 = 4500
-        #END_1 = 6000
-        START_2 = 6000
-        END_2 = 6500
+        START_1 = 5900
+        END_1 = 6500
+        #START_2 = 4500
+        #END_2 = 5900
         #=================================================================
-        #api_key1_cover = master_table.iloc[START_1:END_1]
-        api_key2_cover = master_table.iloc[START_2:END_2]
-        print(f"--- [모드 변경] 자동차용부탄(K015) Nationwide 수색을 시작합니다 ({START_2}~{END_2}) ---")
-        df = collect_by_gasstation(api_key2_cover , prodcd='K015') #api_key1_cover) #(api_key2_cover)
+        api_key1_cover = master_table.iloc[START_1:END_1]
+        #api_key2_cover = master_table.iloc[START_2:END_2]
+        print(f"--- [모드 변경] 고급휘발유(B034) Nationwide 수색을 시작합니다 ({START_1}~{END_1}) ---")
+        df = collect_by_gasstation(api_key1_cover , prodcd='B034') #api_key1_cover) #(api_key2_cover)
         
         if not df.empty:
             print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")

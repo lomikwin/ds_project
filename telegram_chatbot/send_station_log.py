@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
-def send_telegram_message(path = "by_gasoline_log.log"):
+def send_telegram_message(path = "gasoline_log.log"):
     """
     텔레그램 봇을 통해 메시지를 전송합니다.
     .env 파일에 TELEGRAM_HTTP_API TELEGRAM_ID 설정되어 있어야 합니다.
@@ -37,7 +37,7 @@ if __name__ == "__main__" :
     if len(sys.argv) > 1 :
         target_file = sys.argv[1] # 내가 입력한 인자덩어리들 중 2번째 꺼를 받아와! 
     else :
-        target_file = "by_gasoline_log.log"
+        target_file = "gasoline_log.log"
     
     try:
         send_telegram_message(target_file)

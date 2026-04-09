@@ -78,6 +78,6 @@ if __name__ == "__main__":
     print(df_grid.head())
     
     # 파일 저장
-    output_path = "e:/ds_project/coordinate_db/nationwide/nationwide_master_grid_katec.parquet"
+    output_path = "e:/ds_project/coordinates/nationwide_master_grid_katec.parquet"
     df_grid.to_parquet(output_path)
     print(f"\n[SAVE] 그리드 파일 저장 완료: {output_path}")

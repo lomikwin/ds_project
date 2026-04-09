@@ -1,7 +1,4 @@
 .env
-practice_*
-sample_data.parquet
-/playground
 __pycache__
 *.pyc
 *.html
@@ -10,3 +7,5 @@ petroleum_project.db.wal
 .cursorrules
 .venv
 *.log
+CLAUDE.md
+/.claude

@@ -75,7 +75,7 @@ def upload_to_minio_backfill(final_combined_df):
         # 쿼리는 그대로 쓰되, WHERE 절로 한 번 더 확실하게 필터링해서 씁니다.
         # 경로를 '루트'가 아니라 '해당 날짜 폴더'까지 직접 지정해 줍니다.
         # 예: s3://petroleum-project/national_avg/part_dt=20000107/data.parquet
-        target_path = f"s3://petroleum-project/national_avg/part_dt={date_val}/data.parquet"
+        target_path = f"s3://petroleum-project/national_avg/price/part_dt={date_val}/data.parquet"
         
         con.sql(f"""
             SELECT 

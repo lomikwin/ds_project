@@ -29,15 +29,15 @@ SQL_QUERY = """
 with unq_station  as (
 select 
 t1.uni_cd , t1.station_name , t1.brand_cd , t1.station_x , t1.station_y 
-from  read_parquet('s3://petroleum-project/by_diesel/part_dt={part_key}/*.parquet') t1
-union 
+from  read_parquet('s3://petroleum-project/station_price/diesel/part_dt={part_key}/*.parquet') t1
+union
 select
-t1.uni_cd , t1.station_name , t1.brand_cd , t1.station_x , t1.station_y 
-from  read_parquet('s3://petroleum-project/by_gasoline/part_dt={part_key}/*.parquet') t1
-union 
-select 
-t1.uni_cd , t1.station_name , t1.brand_cd , t1.station_x , t1.station_y 
-from  read_parquet('s3://petroleum-project/by_premium_gasoline/part_dt={part_key}/*.parquet') t1
+t1.uni_cd , t1.station_name , t1.brand_cd , t1.station_x , t1.station_y
+from  read_parquet('s3://petroleum-project/station_price/gasoline/part_dt={part_key}/*.parquet') t1
+union
+select
+t1.uni_cd , t1.station_name , t1.brand_cd , t1.station_x , t1.station_y
+from  read_parquet('s3://petroleum-project/station_price/premium_gasoline/part_dt={part_key}/*.parquet') t1
 )
 select
 {part_key} as part_dt
@@ -50,11 +50,11 @@ select
 , t3.price as diesel
 , t4.price as premium_gasoline
 from unq_station t1
-left join read_parquet('s3://petroleum-project/by_gasoline/part_dt={part_key}/*.parquet') t2
+left join read_parquet('s3://petroleum-project/station_price/gasoline/part_dt={part_key}/*.parquet') t2
 on t1.uni_cd = t2.uni_cd
-left join read_parquet('s3://petroleum-project/by_diesel/part_dt={part_key}/*.parquet') t3
+left join read_parquet('s3://petroleum-project/station_price/diesel/part_dt={part_key}/*.parquet') t3
 on t1.uni_cd = t3.uni_cd
-left join read_parquet('s3://petroleum-project/by_premium_gasoline/part_dt={part_key}/*.parquet') t4
+left join read_parquet('s3://petroleum-project/station_price/premium_gasoline/part_dt={part_key}/*.parquet') t4
 on t1.uni_cd = t4.uni_cd
 """
 
@@ -62,7 +62,7 @@ def by_station_agg(part_key):
     sql_filled = SQL_QUERY.format(part_key = part_key)
     
     
-    result_path = f"s3://petroleum-project/by_station_agg/part_dt={part_key}/data.parquet"
+    result_path = f"s3://petroleum-project/station_price/agg/part_dt={part_key}/data.parquet"
     con.sql(sql_filled).write_parquet(result_path , overwrite = True)
     print(f"---[{part_key}]by_station_agg 생성 완료")
 

@@ -42,7 +42,7 @@ def upload_to_minio(df):
     # 3. 데이터에 포함된 part_dt를 읽어 저장 경로 설정 (단층 구조)
     # iloc[0]은 데이터프레임의 첫 번째 행 값을 가져오라는 의미입니다.
     partition_date = df['part_dt'].iloc[0]
-    path = f"s3://petroleum-project/national_avg/part_dt={partition_date}/data.parquet"
+    path = f"s3://petroleum-project/national_avg/price/part_dt={partition_date}/data.parquet"
 
     # [누락된 핵심 코드]
     con.sql("SELECT * FROM df").write_parquet(path)

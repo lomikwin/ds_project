@@ -28,12 +28,12 @@ duckdb.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
 url = "https://www.opinet.co.kr/api/aroundAll.do"
 
 # 일배치를 통해 동적으로 변화하는 마스터 테이블의 s3 경로
-target_coordinates_path = "s3://petroleum-project/target_coordinates/target_coordinates.parquet"
+target_coordinates_path = "s3://petroleum-project/coordinates/target/target.parquet"
 target_coordinates = duckdb.read_parquet(target_coordinates_path).df()
 
 
 
-def by_gasoline(target_df ):
+def by_lpg(target_df ):
     
     #최적화된 좌표별로 api호출을 하고 이를 통해 주유소별 휘발유 가격 정보를 수집합니다.
     #prodcd: 유종 코드 (B027:휘발유, D047:경유, B034:고급휘발유, K015:LPG , C004:실내등유)
@@ -42,7 +42,7 @@ def by_gasoline(target_df ):
     key_index = 5 #5번 키부터 사용시작
     null_cnt = 0
     first_failed_index = None
-    target_df_filltered = target_df[target_df['is_gasoline_check']==1]
+    target_df_filltered = target_df[target_df['is_lpg_check']==1]
     i = 0
     while i < len(target_df_filltered):
         if i%100 == 0 :
@@ -58,7 +58,7 @@ def by_gasoline(target_df ):
                     "x": row["katec_x"],
                     "y": row["katec_y"],
                     "radius": 5000,
-                    "prodcd": "B027" , #"B027",  # 휘발유 기준 (경유는 D047)
+                    "prodcd": "K015" , #"B027",  # 휘발유 기준 (경유는 D047)
                     "sort": 1          # 1: 가격순, 2: 거리순
                     }
                 response = requests.get(url, params=params)
@@ -127,7 +127,7 @@ def upload_to_minio(df):
     partition_date = df['part_dt'].iloc[0]
     timestamp = datetime.now().strftime('%H%M%S')
     file_name = f"data_{timestamp}.parquet"
-    table_name = "by_gasoline"
+    table_name = "station_price/lpg"
     path = f"s3://petroleum-project/{table_name}/part_dt={partition_date}/{file_name}"
 
     
@@ -137,10 +137,10 @@ def upload_to_minio(df):
 
 if __name__ == "__main__":
     try:
-        df = by_gasoline(target_coordinates) 
+        df = by_lpg(target_coordinates) 
         
         if not df.empty:
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {len(df)}개의 주유소의 휘발유 가격을 발견. 업로드를 시작합니다")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {len(df)}개의 주유소의 LPG 가격을 발견. 업로드를 시작합니다")
             upload_to_minio(df)
         else:
             print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")

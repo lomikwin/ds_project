@@ -88,10 +88,10 @@ def target_coordinates():
     master_table = duckdb.read_parquet(master_table_path).df()
 
     # 5. 참조테이블 2번 로드 -- 나중에 연산에 의해서 수집될 테이블 참조
-    gasstation_path = "s3://petroleum-project/coord_validation_logs/*/*.parquet"
+    gasstation_path = "s3://petroleum-project/coordinates/validation_logs/*/*.parquet"
 
     # 6.최종 결과 저장할 경로 및 파일명 , 파티션 없이 최신성만 유지할 예정
-    result_path = "s3://petroleum-project/target_coordinates/target_coordinates.parquet"
+    result_path = "s3://petroleum-project/coordinates/target/target.parquet"
     
     # 7. SQL 튜닝 - from의 path 부분을 채움.
     sql_pathed = SQL_CALCULATION.format(gasstation_path = gasstation_path)
