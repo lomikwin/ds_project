@@ -8,24 +8,34 @@ from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
-OPINET_API_KEY_GROUP = ['OPINET_API_KEY_1', 'OPINET_API_KEY_2', 'OPINET_API_KEY_3', 
-                        'OPINET_API_KEY_4', 'OPINET_API_KEY_5', 'OPINET_API_KEY_6' ] # OPINET_API_KEY가 여러개로 늘어날 수도 있으니까 list로 관리
-# API_KEY = os.getenv('OPINET_API_KEY_1') --> 이건 이제 동적변수가 되어야 하므로 함수 안으로 집어넣기
+API_KEY = os.getenv('OPINET_API_KEY_3') #이제 2번키는 매일 1500개씩 기존 좌표에 대해서 검증하는 것으로 전용 사용.
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT') 
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
 
 #2. duckdb를 통한 s3 읽기 설정
-duckdb.execute("INSTALL httpfs; LOAD httpfs;")
-duckdb.execute(f"SET s3_endpoint='{MINIO_ENDPOINT}';")
-duckdb.execute(f"SET s3_access_key_id='{MINIO_ACCESS_KEY}';")
-duckdb.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
-duckdb.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
+con = duckdb.connect()
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute(f"SET s3_endpoint='{MINIO_ENDPOINT}';")
+con.execute(f"SET s3_access_key_id='{MINIO_ACCESS_KEY}';")
+con.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
+con.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
 
 # 이 절대경로에다가 ~.parquet 파일을 붙여서 경로를 만듬
-master_table_path = os.path.join(base_path, "nationwide_master_grid_katec.parquet")
 
-master_table = duckdb.read_parquet(master_table_path).df()
+target_path = "s3://petroleum-project/coordinates/target/target.parquet"
+
+# 2. 주요 연산는 전부 SQL로 처리 
+SQL_CALCULATION = f"""
+select
+katec_x
+, katec_y
+, lat
+, lon 
+from read_parquet('{target_path}') t2
+order by {{fuel_type}} ASC NULLS FIRST
+limit 500
+"""
 #3. API 기본 호출 URL
 url = "https://www.opinet.co.kr/api/aroundAll.do"
 
@@ -38,13 +48,9 @@ def collect_by_gasstation(target_df , prodcd="B027"):
     by_gasstation = []
     
     for i , (index, row) in enumerate(target_df.iterrows()) : #enumerate라는 것은 처음 배우는데 for 루프를 돌때 바퀴수를 말해주는 함수라고 한다. 
-        # # 한도 초과시 강제로 break
-        # if i >= limit:
-        #     print (f"---- 사전 설정한 한도 {limit}회를 초과하여 강제 종료합니다.----")
-        #     break
         # 진행율 표기 --> 100개마다
         if i%100 == 0:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}]: {i}번째 Dot의 주유소를 수집중입니다.")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}]: {i}번째 Dot의 {prodcd} 유종정보를 수집중입니다.")
         params = {
             "code": API_KEY,
             "out": "json",
@@ -95,15 +101,6 @@ def collect_by_gasstation(target_df , prodcd="B027"):
 
 def upload_to_minio(df):
     
-    con = duckdb.connect()
-    con.execute("INSTALL httpfs; LOAD httpfs;")
-
-    #2. .env에서 가져온 Minio설정값 로딩
-    con.execute(f"SET s3_endpoint='{MINIO_ENDPOINT}';")
-    con.execute(f"SET s3_access_key_id='{MINIO_ACCESS_KEY}';")
-    con.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
-    con.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
-
     partition_date = df['part_dt'].iloc[0]
     timestamp = datetime.now().strftime('%H%M%S')
     file_name = f"data_{timestamp}.parquet"
@@ -116,19 +113,29 @@ def upload_to_minio(df):
 
 if __name__ == "__main__":
     try:
-        #==============수동으로 API키를 돌리기 위해 새로 세팅한 영역============
-        START_1 = 5900
-        END_1 = 6500
-        #START_2 = 4500
-        #END_2 = 5900
-        #=================================================================
-        api_key1_cover = master_table.iloc[START_1:END_1]
-        #api_key2_cover = master_table.iloc[START_2:END_2]
-        print(f"--- [모드 변경] 고급휘발유(B034) Nationwide 수색을 시작합니다 ({START_1}~{END_1}) ---")
-        df = collect_by_gasstation(api_key1_cover , prodcd='B034') #api_key1_cover) #(api_key2_cover)
-        
+        sql_pathed = SQL_CALCULATION.format(fuel_type = 'last_check_gasoline')
+        validate_table = con.sql(sql_pathed).df()
+        df = collect_by_gasstation(validate_table , prodcd='B027')
         if not df.empty:
-            print(f"---{len(df)}개의 주유소를 발견 업로드를 시작합니다")
+            print(f"---{len(df)}개의 휘발유 주유소를 발견 업로드를 시작합니다")
+            upload_to_minio(df)
+        else:
+            print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
+        
+        sql_pathed = SQL_CALCULATION.format( fuel_type = 'last_check_premium_gasoline')
+        validate_table = con.sql(sql_pathed).df()
+        df = collect_by_gasstation(validate_table , prodcd='B034')
+        if not df.empty:
+            print(f"---{len(df)}개의 고급 휘발유 주유소를 발견 업로드를 시작합니다")
+            upload_to_minio(df)
+        else:
+            print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
+
+        sql_pathed = SQL_CALCULATION.format( fuel_type = 'last_check_lpg')
+        validate_table = con.sql(sql_pathed).df()
+        df = collect_by_gasstation(validate_table , prodcd='K015')
+        if not df.empty:
+            print(f"---{len(df)}개의 LPG 충전소를 발견 업로드를 시작합니다")
             upload_to_minio(df)
         else:
             print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
