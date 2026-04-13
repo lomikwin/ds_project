@@ -1,6 +1,7 @@
 #time table for synology scheduler
 time,schedule_name,py_name,path,notes
 00:30,git hub auto pull,,,synchronizing codes with my github repository
+00:40,coordinates.validation_logs,validation_logs.py,/volume2/ds_project/coordinates,collect brute-force price data for preparing whitelist
 00:55,target,target.py,/volume2/ds_project/coordinates,refreshing whitelist for target coordinates
 01:00,price,price.py,/volume2/ds_project/national_avg,collecting daily average price of each fuels
 01:30,gasoline,gasoline.py,/volume2/ds_project/station_price,collect daily gasoline price by stations in Korea.

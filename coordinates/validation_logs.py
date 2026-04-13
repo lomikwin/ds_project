@@ -8,7 +8,7 @@ from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
-API_KEY = os.getenv('OPINET_API_KEY_3') #이제 2번키는 매일 1500개씩 기존 좌표에 대해서 검증하는 것으로 전용 사용.
+API_KEY = os.getenv('OPINET_API_KEY_3') #이제 3번키는 매일 1500개씩 기존 좌표에 대해서 검증하는 것으로 전용 사용.
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT') 
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
@@ -33,8 +33,8 @@ katec_x
 , lat
 , lon 
 from read_parquet('{target_path}') t2
-order by {{fuel_type}} ASC NULLS FIRST
-limit 500
+order by last_check_coord ASC NULLS FIRST
+limit 500 
 """
 #3. API 기본 호출 URL
 url = "https://www.opinet.co.kr/api/aroundAll.do"
@@ -64,25 +64,40 @@ def collect_by_gasstation(target_df , prodcd="B027"):
             response = requests.get(url, params=params)
             response.raise_for_status() # 에러 발생 시 예외 처리
             data = response.json()
-        
+
             oil_list = data.get('RESULT', {}).get('OIL', [])
             #print(f"   -> 검색 결과 {len(oil_list)}개 발견!")
-
-            for station in oil_list:
+            if oil_list:
+                for station in oil_list:
+                    by_gasstation.append ((
+                        row["katec_x"] , 
+                        row["katec_y"] , 
+                        row["lat"],
+                        row["lon"],
+                        station["UNI_ID"],
+                        station["POLL_DIV_CD"],
+                        station["OS_NM"],
+                        station["GIS_X_COOR"],
+                        station["GIS_Y_COOR"],
+                        station["DISTANCE"],
+                        params["prodcd"], # 나중에 함수로 만들때는 이걸 인자로 넣도록 하고, 일단 api호출값에서는 이 prodcd가 없어서 이걸 수기로 테이블에 넣는 방법을 택했다.
+                        station["PRICE"]
+                        ))
+            else:
                 by_gasstation.append ((
-                    row["katec_x"] , 
-                    row["katec_y"] , 
-                    row["lat"],
-                    row["lon"],
-                    station["UNI_ID"],
-                    station["POLL_DIV_CD"],
-                    station["OS_NM"],
-                    station["GIS_X_COOR"],
-                    station["GIS_Y_COOR"],
-                    station["DISTANCE"],
-                    params["prodcd"], # 나중에 함수로 만들때는 이걸 인자로 넣도록 하고, 일단 api호출값에서는 이 prodcd가 없어서 이걸 수기로 테이블에 넣는 방법을 택했다.
-                    station["PRICE"]
-                    ))
+                        row["katec_x"],
+                        row["katec_y"],
+                        row["lat"],
+                        row["lon"],
+                        None ,
+                        None ,
+                        None , 
+                        None ,
+                        None , 
+                        None , 
+                        params["prodcd"],
+                        None
+                        ))
         except Exception as e:
             print(f"[ERROR] API 호출 중 오류 발생: {e}")
     columns =['katec_x' , 'katec_y' , 'dot_lat' , 'dot_lon' , 'uni_cd' , 'brand_cd',
@@ -113,32 +128,31 @@ def upload_to_minio(df):
 
 if __name__ == "__main__":
     try:
-        sql_pathed = SQL_CALCULATION.format(fuel_type = 'last_check_gasoline')
-        validate_table = con.sql(sql_pathed).df()
+        validate_table = con.sql(SQL_CALCULATION).df()
         df = collect_by_gasstation(validate_table , prodcd='B027')
         if not df.empty:
-            print(f"---{len(df)}개의 휘발유 주유소를 발견 업로드를 시작합니다")
+            found = df['uni_cd'].notna().sum()      # 실제 주유소
+            empty = df['uni_cd'].isna().sum()       # 빈 좌표
+            print(f"---휘발유: 주유소 {found}건 + 빈 좌표 {empty}건 = 총 {len(df)}건 업로드")
             upload_to_minio(df)
         else:
-            print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
-        
-        sql_pathed = SQL_CALCULATION.format( fuel_type = 'last_check_premium_gasoline')
-        validate_table = con.sql(sql_pathed).df()
+            print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")
         df = collect_by_gasstation(validate_table , prodcd='B034')
         if not df.empty:
-            print(f"---{len(df)}개의 고급 휘발유 주유소를 발견 업로드를 시작합니다")
+            found = df['uni_cd'].notna().sum()      # 실제 주유소
+            empty = df['uni_cd'].isna().sum()       # 빈 좌표
+            print(f"---고급휘발유: 주유소 {found}건 + 빈 좌표 {empty}건 = 총 {len(df)}건 업로드")
             upload_to_minio(df)
         else:
-            print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
-
-        sql_pathed = SQL_CALCULATION.format( fuel_type = 'last_check_lpg')
-        validate_table = con.sql(sql_pathed).df()
+            print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")
         df = collect_by_gasstation(validate_table , prodcd='K015')
         if not df.empty:
-            print(f"---{len(df)}개의 LPG 충전소를 발견 업로드를 시작합니다")
+            found = df['uni_cd'].notna().sum()      # 실제 주유소
+            empty = df['uni_cd'].isna().sum()       # 빈 좌표
+            print(f"---LPG: 충전소 {found}건 + 빈 좌표 {empty}건 = 총 {len(df)}건 업로드")
             upload_to_minio(df)
         else:
-            print("-------집된 주유소가 없습니다. 업로드를 건너뜁니다------")
+            print("-------수집된 주유소가 없습니다. 업로드를 건너뜁니다------")
         
         
     except Exception as e:

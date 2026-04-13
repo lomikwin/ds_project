@@ -28,6 +28,7 @@ SQL_CALCULATION = """
         
         FROM '{gasstation_path}'
         WHERE part_dt >= 20260202
+        AND uni_cd IS NOT NULL
     ), dot_utility as (
         SELECT 
         katec_x 
@@ -38,6 +39,14 @@ SQL_CALCULATION = """
         , count(1) as total_detected_cnt
         from base 
         group by 1,2,3,4
+    )
+    , last_check_coord as (
+    SELECT
+    katec_x
+    , katec_y
+    , max(part_dt) as last_check_coord
+    FROM '{gasstation_path}'
+    GROUP BY 1,2
     )
     , calculation_by_coordinates as (
     select 
@@ -65,10 +74,14 @@ SQL_CALCULATION = """
     , t2.last_check_gasoline
     , t2.last_check_premium_gasoline
     , t2.last_check_lpg
+    , t3.last_check_coord
     FROM master_table t1
     LEFT JOIN calculation_by_coordinates t2
     ON t1.katec_x = t2.katec_x
     AND t1.katec_y = t2.katec_y
+    LEFT JOIN last_check_coord t3
+    ON t1.katec_x = t3.katec_x
+    AND t1.katec_y = t3.katec_y
     """
 
 #이제 API키를 2개를 갖고 내가 돌려가면서 써볼것이기에 이 부분을 미리 사전에 반영해둠. 
@@ -107,5 +120,3 @@ if __name__ == "__main__":
         
     except Exception as e:
         print(f" [에러] 작업 중 오류 발생: {e}")
-
-#petroleum-project/coord_validation_logs
