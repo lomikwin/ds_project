@@ -28,33 +28,50 @@ con.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
 url = "https://www.opinet.co.kr/api/areaCode.do"
 
 area_code = []
-params = {
+params_1 = {
             "code": API_KEY,
             "out": "json",
-            "area": "02",
         }
-try:
-    response = requests.get(url, params=params)
-    response.raise_for_status() # 에러 발생 시 예외 처리
-    data = response.json()
-
+respon_1 = requests.get(url, params=params_1)
+respon_1.raise_for_status() # 에러 발생 시 예외 처리
+data = respon_1.json()
+area_code_list = data.get('RESULT', {}).get('OIL', [])
+if area_code_list:
+    for i in area_code_list:
+        area_code.append((
+            1,
+            i['AREA_CD'],
+            i['AREA_NM'],
+            None,
+            None,
+        ))
+for area in area_code_list:
+    params_2 = {
+                "code": API_KEY,
+                "out": "json",
+                "area": area['AREA_CD'],
+            }
+    respon_2 = requests.get(url, params=params_2)
+    respon_2.raise_for_status() # 에러 발생 시 예외 처리
+    data = respon_2.json()
     area_code_list = data.get('RESULT', {}).get('OIL', [])
-    if area_code_list:
-        for i in area_code_list:
-            area_code.append((
-                i['AREA_CD'],
-                i['AREA_NM'],
-            ))
-    cl_list = ['AREA_CD' , 'AREA_NM']
-    area_df = pd.DataFrame(area_code, columns = cl_list)
-    now = datetime.now()
-    area_df['part_dt'] = now.strftime('%Y%m%d')
-    timestamp = datetime.now().strftime('%Y%m%d %H%M%S')
-    file_name = f"data_{timestamp}.parquet"
-    path = f"s3://petroleum-project/station_metadata/area_code/{file_name}"
-    con.sql("SELECT * FROM area_df").write_parquet(path)
-except Exception as e:
-    print(f"[ERROR] API 호출 중 오류 발생: {e}")
+    for i in area_code_list:
+        area_code.append((
+            2,
+            i['AREA_CD'],
+            i['AREA_NM'],
+            area['AREA_CD'],
+            area['AREA_NM'],
+        ))
+cl_list = ['AREA_DEPTH' , 'AREA_CD' , 'AREA_NM' ,'UPPER_CD' ,'UPPER_NM']
+area_df = pd.DataFrame(area_code, columns = cl_list)
+now = datetime.now()
+area_df['part_dt'] = now.strftime('%Y%m%d')
+timestamp = datetime.now().strftime('%Y%m%d %H%M%S')
+file_name = f"data_{timestamp}.parquet"
+path = f"s3://petroleum-project/station_metadata/area_code/{file_name}"
+con.sql("SELECT * FROM area_df").write_parquet(path)
 
+print( f"MINIO UPLOAD 완료: {len(area_df)}개의 지역정보 업로드 완료.")
 
 
