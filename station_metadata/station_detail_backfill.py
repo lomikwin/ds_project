@@ -32,8 +32,12 @@ url = "https://www.opinet.co.kr/api/detailById.do"
 path = "s3://petroleum-project/station_price/agg/*/*.parquet"
 tg_station = con.sql(
     f"""SELECT DISTINCT uni_cd
-    FROM  read_parquet('{path}')
+    FROM  read_parquet('{path}') t1
+    LEFT join read_parquet('s3://petroleum-project/station_metadata/station_detail/*/*.parquet') t2
+    ON t1.uni_cd = t2.uni_cd
+    WHERE t2.part_dt is null 
     ORDER BY uni_cd ASC
+    LIMIT 3800
     """
     ).df() # 나중에 저 LIMIT 부분을 갖고 테스트 양을 조절.
 
@@ -176,7 +180,7 @@ def upload_to_minio(df):
 
 if __name__ == "__main__":
     try:
-        df = meta_detail(tg_station.iloc[0:3500]) # 1day : 0:3500 ,  2day : 3500:7000 , 3day : 7000:
+        df = meta_detail(tg_station) # 1day : 0:3500 ,  2day : 3500:7000 , 3day : 7000:
         
         if not df.empty:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {len(df)}개의 주유소의 메타정보를 발견 업로드를 시작합니다")
