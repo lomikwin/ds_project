@@ -32,14 +32,27 @@ url = "https://www.opinet.co.kr/api/detailById.do"
 path = "s3://petroleum-project/station_price/agg/*/*.parquet"
 tg_station = con.sql(
     f"""
-    SELECT DISTINCT t1.uni_cd , max(t1.part_dt) as max_part_dt
+    
+    WITH base_step as (
+    SELECT DISTINCT t1.uni_cd , max(t1.part_dt) as max_part_dt , 1 as SEQ
     FROM  read_parquet('s3://petroleum-project/station_price/agg/*/*.parquet') t1
     LEFT join read_parquet('s3://petroleum-project/station_metadata/station_detail/*/*.parquet') t2
     ON t1.uni_cd = t2.uni_cd
     WHERE t2.part_dt is null
+    GROUP by 1
+    HAVING cast(max(t1.part_dt) as varchar) >= strftime( today()  - interval 60 DAYS , '%Y%m%d')
+
+    UNION ALL 
+    SELECT 
+    DISTINCT t1.uni_cd, max ( t1.part_dt) as max_part_dt  , 2 AS SEQ
+    from read_parquet('s3://petroleum-project/station_metadata/station_detail/*/*.parquet') t1
     group by 1
-    ORDER BY 2 desc
-    LIMIT 3800
+    HAVING cast(max(t1.part_dt) as varchar) >= strftime( today()  - interval 60 DAYS , '%Y%m%d')
+    )
+    SELECT * 
+    FROM base_step
+    ORDER BY SEQ , 2
+    LIMIT 1000
     """
     ).df() # 나중에 저 LIMIT 부분을 갖고 테스트 양을 조절.
 
@@ -87,7 +100,7 @@ def meta_detail(tg_station ):
                     null_cnt += 1
                     if null_cnt == 1:
                         first_failed_index = i
-                    if null_cnt >= 10:
+                    if null_cnt >= 50:
                         print (f"공백응답[] 10회 누적. API키를 교체합니다. {first_failed_index}번으로 돌아갑니다.")
                         key_index -= 1
                         null_cnt = 0
