@@ -101,13 +101,13 @@ def meta_detail(tg_station ):
                     if null_cnt == 1:
                         first_failed_index = i
                     if null_cnt >= 50:
-                        print (f"공백응답[] 10회 누적. API키를 교체합니다. {first_failed_index}번으로 돌아갑니다.")
+                        print (f"공백응답[] 50회 누적. API키를 교체합니다. {first_failed_index}번으로 돌아갑니다.")
                         key_index -= 1
                         null_cnt = 0
                         i = first_failed_index
                         break #새로운 키로 바로 찔러보도록 while loop 탈출
                     else:
-                        print(f"[주의] {i}번째 주유소 공백 {null_cnt}/10")
+                        print(f"[주의] {i}번째 주유소 공백 {null_cnt}/50")
                         success_flag = True
                         i += 1
             if key_index < 0:

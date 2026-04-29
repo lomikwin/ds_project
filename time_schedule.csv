@@ -8,6 +8,7 @@ time,schedule_name,py_name,path,notes
 01:45,diesel,diesel.py,/volume2/ds_project/station_price,collect daily diesel price by stations in Korea.
 02:00,premium_gasoline,premium_gasoline.py,/volume2/ds_project/station_price,collect daily premium gasoline price by stations in Korea.
 02:15,lpg,lpg.py,/volume2/ds_project/station_price,collect daily lpg price by stations in Korea.
+02:30,station_detail,station_detail.py,/volume2/ds_project/station_metadata,collect station meta data and update.
 05:00,send_log_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of gasoline to telegram
 05:05,send_log_diesel,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of diesel to telegram
 05:10,send_log_premium_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of premium gasoline to telegram
