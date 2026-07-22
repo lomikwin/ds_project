@@ -28,7 +28,7 @@ data_raw = {
     "OILSRTCD3":"003",
     "STDDATE":tg_dt.strftime('%Y%m%d'),
     "ENDDATE":tg_dt.strftime('%Y%m%d'),
-    "SEL_DIV":"div_dar"
+    "SEL_DIV":["div_dar","div_won"] , 
     "OILSRTCD":["001","002","003"] 
 }
 #2. 결과 획득
