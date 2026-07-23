@@ -81,7 +81,8 @@ def upload_to_minio(df):
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
             f"[{min_dt.strftime('%Y%m%d')} ~ {max_dt.strftime('%Y%m%d')}] 의 {cnt}행의 원유 가격 정보를 수집하여 저장합니다.")
         else:
-            print("-------수집된 원유 가격정보가 없습니다. 업로드를 건너뜁니다------")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
+            " 수집된 원유 가격정보가 없습니다. 업로드를 건너뜁니다------")
     except Exception as e:
         print(f" [에러] 작업 중 오류 발생: {e}")
 
