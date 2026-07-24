@@ -59,6 +59,24 @@ def gather_crude_oil_price(stt_dt, end_dt, currency = "USD"):
 
     df = df[['part_dt','currency','unit','Dubai' , 'Brent' , 'WTI' ]]
     return df
+# 중복파티션 방지용 함수
+def drop_existing (df , stt_dt , end_dt ):
+    return duckdb.sql(f"""
+       WITH existing_table AS (
+        SELECT DISTINCT part_dt, currency
+        FROM read_parquet('s3://petroleum-project/crude_oil_price/*/*.parquet')
+        WHERE part_dt BETWEEN strptime('{stt_dt}','%Y%m%d') AND strptime('{end_dt}' ,'%Y%m%d')    -- ★ 파티션 프루닝용
+       ) -- duckdb의 date_parse 문법 = strptime
+       SELECT
+       t1.*
+       FROM df t1
+       LEFT JOIN existing_table t2
+       ON CAST(t1.part_dt AS DATE) = t2.part_dt
+       AND t1.currency = t2.currency
+       WHERE t2.part_dt IS NULL
+    """
+    ).df()
+
 
 def upload_to_minio(df):
     #7. 결과 분기 저장.
@@ -99,8 +117,10 @@ if __name__ == "__main__":
         end_dt = tg_dt.strftime('%Y%m%d')
     try:
         df_krw = gather_crude_oil_price(stt_dt , end_dt , 'KRW')
+        df_krw = drop_existing(df_krw,stt_dt,end_dt)
         upload_to_minio(df_krw)
         df_usd = gather_crude_oil_price(stt_dt , end_dt )
+        df_usd = drop_existing(df_usd,stt_dt,end_dt)
         upload_to_minio(df_usd)
         
         
