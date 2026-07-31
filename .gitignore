@@ -2,6 +2,7 @@
 __pycache__
 *.pyc
 *.html
+!playground/Time_Gap_between Crude_oil/*.html
 petroleum_project.db
 petroleum_project.db.wal
 .cursorrules
@@ -17,3 +18,4 @@ run_log_day3.txt
 IDE_Backup
 /playground/vectorized_category/
 /.vscode
+Favorites_list.md

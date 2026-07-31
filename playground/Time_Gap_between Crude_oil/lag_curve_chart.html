@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>국제유가 → 국내 휘발유가 반영 시차</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px;
+    background: #f9f9f7;
+    font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    display: flex; justify-content: center;
+  }
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --axis:           #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --band:           rgba(11,11,11,0.045);
+    --series-dubai:   #2a78d6;
+    --series-brent:   #eb6834;
+    --series-wti:     #1baf7a;
+
+    width: 100%; max-width: 1040px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 26px 28px 22px;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0d0d0d; }
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --axis:           #383835;
+      --border:         rgba(255,255,255,0.10);
+      --band:           rgba(255,255,255,0.055);
+      --series-dubai:   #3987e5;
+      --series-brent:   #d95926;
+      --series-wti:     #199e70;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --axis:           #383835;
+    --border:         rgba(255,255,255,0.10);
+    --band:           rgba(255,255,255,0.055);
+    --series-dubai:   #3987e5;
+    --series-brent:   #d95926;
+    --series-wti:     #199e70;
+  }
+
+  h1 { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0 0 5px; letter-spacing: -0.2px; }
+  .sub { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 3px; line-height: 1.55; }
+  .meta { font-size: 12px; color: var(--text-muted); margin: 0 0 16px; }
+
+  .legend { display: flex; gap: 20px; align-items: center; margin: 0 0 6px 2px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-secondary); }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .axis-line { stroke: var(--axis); stroke-width: 1; }
+  .tick { font-size: 11px; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .axis-title { font-size: 11.5px; fill: var(--text-secondary); }
+  .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .peak-ring { stroke: var(--surface-1); stroke-width: 2.5; }
+  .direct-label { font-size: 12.5px; font-weight: 600; }
+  .leader { stroke-width: 1; fill: none; }
+  .anno-kicker { font-size: 11.5px; fill: var(--text-muted); text-anchor: middle; }
+  .anno-head { font-size: 16px; font-weight: 700; fill: var(--text-primary); text-anchor: middle; }
+  .anno-detail { font-size: 11.5px; fill: var(--text-secondary); text-anchor: middle; }
+
+  .crosshair { stroke: var(--axis); stroke-width: 1; pointer-events: none; opacity: 0; }
+  .hover-dot { pointer-events: none; opacity: 0; stroke: var(--surface-1); stroke-width: 2; }
+  #tip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity .1s;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 11px; font-size: 12px; color: var(--text-primary);
+    box-shadow: 0 3px 14px rgba(0,0,0,.13); white-space: nowrap; z-index: 5;
+  }
+  #tip .tip-lag { font-weight: 700; margin-bottom: 5px; font-size: 12.5px; }
+  #tip .tip-row { display: flex; align-items: center; gap: 7px; line-height: 1.7; }
+  #tip .tip-name { color: var(--text-secondary); min-width: 40px; }
+  #tip .tip-val { font-variant-numeric: tabular-nums; margin-left: auto; }
+
+  .foot { font-size: 11.5px; color: var(--text-muted); line-height: 1.85; margin: 14px 0 0; }
+  .foot b { color: var(--text-secondary); font-weight: 600; }
+
+  details { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+  summary { font-size: 12.5px; color: var(--text-secondary); cursor: pointer; font-weight: 600; }
+  table { border-collapse: collapse; margin-top: 12px; font-size: 11.5px; width: 100%; }
+  th, td { padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--grid); color: var(--text-secondary); }
+  th { color: var(--text-primary); font-weight: 600; text-align: right; }
+  th:first-child, td:first-child { text-align: center; }
+  tr.pk td { background: var(--band); color: var(--text-primary); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="viz-root" id="root">
+
+  <h1>국제유가는 국내 휘발유가보다 약 2~3주 앞선다</h1>
+  <p class="sub">국내 휘발유 전국평균가를 <b>N일 전</b> 국제유가와 짝지어 상관계수를 계산했을 때, 세 유종 모두 <b>2~3주 구간에서 최고점</b>을 찍고 다시 내려온다.</p>
+  <p class="meta">2008-04-15 ~ 2026-07-31 일별 · 휘발유(B027) 전국평균가 vs 국제유가 USD/배럴 · 유종별 표본 4,579~4,716일</p>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--series-dubai)"></span>Dubai</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--series-brent)"></span>Brent</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--series-wti)"></span>WTI</div>
+    <div class="legend-item" style="color:var(--text-muted)">● = 유종별 최고점</div>
+  </div>
+
+  <div style="position:relative" id="wrap">
+  <svg viewBox="0 0 1000 520" id="chart" aria-label="lag별 상관계수 곡선">
+
+    <!-- 고원 밴드 -->
+    <rect x="454.9" y="46" width="196.5" height="422" fill="var(--band)"/>
+
+    <!-- 가로 그리드 -->
+    <line class="grid-line" x1="62" y1="450.0" x2="904" y2="450.0"/>
+    <line class="grid-line" x1="62" y1="360.3" x2="904" y2="360.3"/>
+    <line class="grid-line" x1="62" y1="270.5" x2="904" y2="270.5"/>
+    <line class="grid-line" x1="62" y1="180.7" x2="904" y2="180.7"/>
+    <line class="grid-line" x1="62" y1="90.9"  x2="904" y2="90.9"/>
+
+    <!-- y축 눈금 -->
+    <text class="tick" x="54" y="454.0" text-anchor="end">0.880</text>
+    <text class="tick" x="54" y="364.3" text-anchor="end">0.890</text>
+    <text class="tick" x="54" y="274.5" text-anchor="end">0.900</text>
+    <text class="tick" x="54" y="184.7" text-anchor="end">0.910</text>
+    <text class="tick" x="54" y="94.9"  text-anchor="end">0.920</text>
+    <text class="axis-title" x="20" y="258" text-anchor="middle" transform="rotate(-90 20 258)">상관계수 r</text>
+
+    <!-- x축 -->
+    <line class="axis-line" x1="62" y1="468" x2="904" y2="468"/>
+    <text class="tick" x="62"    y="487" text-anchor="middle">0</text>
+    <text class="tick" x="202.3" y="487" text-anchor="middle">5</text>
+    <text class="tick" x="342.7" y="487" text-anchor="middle">10</text>
+    <text class="tick" x="483"   y="487" text-anchor="middle">15</text>
+    <text class="tick" x="623.3" y="487" text-anchor="middle">20</text>
+    <text class="tick" x="763.7" y="487" text-anchor="middle">25</text>
+    <text class="tick" x="904"   y="487" text-anchor="middle">30</text>
+    <text class="axis-title" x="483" y="509" text-anchor="middle">lag — 국내 휘발유가를 며칠 전 국제유가와 짝지었는지 (일)</text>
+
+    <!-- 중앙 주석 (빈 영역 활용) -->
+    <text class="anno-kicker" x="553" y="232">최고점 구간</text>
+    <text class="anno-head"   x="553" y="257">약 2~3주 (14~21일)</text>
+    <text class="anno-detail" x="553" y="280">Dubai 19일 · Brent 16일 · WTI 16일</text>
+
+    <!-- 시계열 -->
+    <polyline class="series" stroke="var(--series-wti)" points="62,441.9 90.1,428.5 118.1,415.6 146.2,405.3 174.3,397.1 202.3,388.9 230.4,381.5 258.5,373.7 286.5,366.8 314.6,360.5 342.7,356.1 370.7,354.2 398.8,351.8 426.9,350.5 454.9,350.2 483,350.3 511.1,350.1 539.1,351.2 567.2,354.4 595.3,357.3 623.3,361.7 651.4,368.2 679.5,374.2 707.5,379.8 735.6,387.0 763.7,394.0 791.7,402.0 819.8,412.5 847.9,426.2 875.9,440.6 904,451.8"/>
+    <polyline class="series" stroke="var(--series-dubai)" points="62,218.8 90.1,204.7 118.1,192.1 146.2,181.2 174.3,170.8 202.3,160.7 230.4,151.0 258.5,141.5 286.5,132.2 314.6,124.5 342.7,118.1 370.7,111.8 398.8,105.5 426.9,100.9 454.9,97.5 483,93.2 511.1,89.3 539.1,87.2 567.2,86.7 595.3,85.8 623.3,87.5 651.4,91.2 679.5,94.3 707.5,97.8 735.6,102.7 763.7,107.5 791.7,112.4 819.8,120.9 847.9,131.6 875.9,141.6 904,150.6"/>
+    <polyline class="series" stroke="var(--series-brent)" points="62,159.5 90.1,146.4 118.1,134.4 146.2,124.3 174.3,115.1 202.3,106.4 230.4,98.0 258.5,89.5 286.5,81.7 314.6,75.2 342.7,70.4 370.7,66.7 398.8,63.2 426.9,60.8 454.9,59.4 483,58.8 511.1,58.6 539.1,60.0 567.2,62.6 595.3,65.1 623.3,69.1 651.4,75.0 679.5,80.6 707.5,86.1 735.6,92.5 763.7,98.7 791.7,105.4 819.8,114.6 847.9,126.6 875.9,137.9 904,148.1"/>
+
+    <!-- 최고점 마커 -->
+    <circle class="peak-ring" cx="511.1" cy="58.6"  r="5" fill="var(--series-brent)"/>
+    <circle class="peak-ring" cx="595.3" cy="85.8"  r="5" fill="var(--series-dubai)"/>
+    <circle class="peak-ring" cx="511.1" cy="350.1" r="5" fill="var(--series-wti)"/>
+
+    <!-- 직접 라벨 (우측, Dubai·Brent는 수렴하므로 리더선으로 분리) -->
+    <path class="leader" stroke="var(--series-brent)" d="M904,148.1 L913,139"/>
+    <text class="direct-label" x="917" y="143" fill="var(--series-brent)">Brent</text>
+    <path class="leader" stroke="var(--series-dubai)" d="M904,150.6 L913,167"/>
+    <text class="direct-label" x="917" y="171" fill="var(--series-dubai)">Dubai</text>
+    <text class="direct-label" x="913" y="456" fill="var(--series-wti)">WTI</text>
+
+    <!-- hover 레이어 -->
+    <line class="crosshair" id="cross" y1="46" y2="468"/>
+    <circle class="hover-dot" id="hd-dubai" r="4.5" fill="var(--series-dubai)"/>
+    <circle class="hover-dot" id="hd-brent" r="4.5" fill="var(--series-brent)"/>
+    <circle class="hover-dot" id="hd-wti"   r="4.5" fill="var(--series-wti)"/>
+    <rect id="hit" x="62" y="46" width="842" height="422" fill="transparent"/>
+  </svg>
+  <div id="tip"></div>
+  </div>
+
+  <p class="foot">
+    <b>y축은 0.878부터 잘려 있습니다.</b> 전 구간 변동폭이 0.015에 불과해 0부터 그리면 세 곡선이 직선으로 보입니다. 봉우리의 <b>위치</b>를 읽는 그래프이고, 높이 차이는 실제보다 크게 보입니다.<br>
+    <b>세로축을 각도로 환산하면</b> Dubai는 25.1°(lag 0) → 23.0°(lag 19). lag를 30일 밀어봐야 <b>2도</b>만 움직입니다. 0.92라는 값의 대부분은 두 시계열이 18년간 함께 상승한 <b>공통 추세</b>가 만든 것이며, 시차 신호는 그 위에 얹힌 얇은 층입니다.<br>
+    국제유가는 거래일만 존재하므로(휴장일 행 없음) 주말·공휴일 약 2,100일은 매칭되지 않아 계산에서 제외됐습니다. 표본 수는 lag 전 구간에서 3행 이내로 일정해 lag끼리 비교가 성립합니다.
+  </p>
+
+  <details>
+    <summary>데이터 표로 보기 (lag 0~30)</summary>
+    <table id="tbl">
+      <thead><tr><th>lag</th><th>Dubai</th><th>Brent</th><th>WTI</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </details>
+
+</div>
+
+<script>
+const LAGS = Array.from({length:31}, (_,i)=>i);
+const D = [0.9057564,0.9073230,0.9087281,0.9099460,0.9111067,0.9122346,0.9133098,0.9143732,0.9154049,0.9162645,0.9169702,0.9176710,0.9183750,0.9188900,0.9192704,0.9197436,0.9201803,0.9204175,0.9204726,0.9205777,0.9203833,0.9199651,0.9196230,0.9192310,0.9186874,0.9181499,0.9176098,0.9166593,0.9154692,0.9143530,0.9133541];
+const B = [0.9123686,0.9138204,0.9151647,0.9162839,0.9173134,0.9182812,0.9192129,0.9201632,0.9210334,0.9217573,0.9222891,0.9226945,0.9230896,0.9233607,0.9235172,0.9235843,0.9236042,0.9234446,0.9231553,0.9228734,0.9224280,0.9217786,0.9211500,0.9205406,0.9198225,0.9191403,0.9183845,0.9173610,0.9160329,0.9147720,0.9136292];
+const W = [0.8809085,0.8823970,0.8838407,0.8849823,0.8858973,0.8868063,0.8876405,0.8884991,0.8892730,0.8899791,0.8904609,0.8906723,0.8909406,0.8910888,0.8911273,0.8911066,0.8911383,0.8910076,0.8906556,0.8903272,0.8898358,0.8891158,0.8884442,0.8878200,0.8870222,0.8862386,0.8853458,0.8841864,0.8826507,0.8810509,0.8798061];
+
+const X0=62, X1=904, Y0=46, Y1=468, RMIN=0.878, RMAX=0.925;
+const xs = l => X0 + l*(X1-X0)/30;
+const ys = r => Y1 - (r-RMIN)*(Y1-Y0)/(RMAX-RMIN);
+const PEAK = {D:19, B:16, W:16};
+
+const svg=document.getElementById('chart'), hit=document.getElementById('hit'),
+      cross=document.getElementById('cross'), tip=document.getElementById('tip'),
+      wrap=document.getElementById('wrap'),
+      dots={D:document.getElementById('hd-dubai'),B:document.getElementById('hd-brent'),W:document.getElementById('hd-wti')};
+
+function show(l){
+  const x=xs(l);
+  cross.setAttribute('x1',x); cross.setAttribute('x2',x); cross.style.opacity=.55;
+  [['D',D],['B',B],['W',W]].forEach(([k,arr])=>{
+    dots[k].setAttribute('cx',x); dots[k].setAttribute('cy',ys(arr[l])); dots[k].style.opacity=1;
+  });
+  const mark=k=>PEAK[k]===l?' ★':'';
+  tip.innerHTML='<div class="tip-lag">lag '+l+'일</div>'
+    +'<div class="tip-row"><span class="swatch" style="width:9px;height:9px;border-radius:2px;background:var(--series-dubai)"></span><span class="tip-name">Dubai</span><span class="tip-val">'+D[l].toFixed(5)+mark('D')+'</span></div>'
+    +'<div class="tip-row"><span class="swatch" style="width:9px;height:9px;border-radius:2px;background:var(--series-brent)"></span><span class="tip-name">Brent</span><span class="tip-val">'+B[l].toFixed(5)+mark('B')+'</span></div>'
+    +'<div class="tip-row"><span class="swatch" style="width:9px;height:9px;border-radius:2px;background:var(--series-wti)"></span><span class="tip-name">WTI</span><span class="tip-val">'+W[l].toFixed(5)+mark('W')+'</span></div>';
+  const rect=wrap.getBoundingClientRect(), px=x/1000*rect.width;
+  tip.style.opacity=1;
+  tip.style.left=Math.min(Math.max(px+14,0), rect.width-tip.offsetWidth-4)+'px';
+  tip.style.top=(ys(B[l])/520*rect.height - 10)+'px';
+}
+function hide(){ cross.style.opacity=0; Object.values(dots).forEach(d=>d.style.opacity=0); tip.style.opacity=0; }
+
+function move(e){
+  const rect=svg.getBoundingClientRect();
+  const vx=(e.clientX-rect.left)/rect.width*1000;
+  const l=Math.round(Math.min(Math.max((vx-X0)/(X1-X0)*30,0),30));
+  show(l);
+}
+hit.addEventListener('mousemove',move);
+hit.addEventListener('mouseleave',hide);
+hit.addEventListener('touchmove',e=>{ e.preventDefault(); move(e.touches[0]); },{passive:false});
+
+const tb=document.querySelector('#tbl tbody');
+tb.innerHTML=LAGS.map(l=>{
+  const pk=(PEAK.D===l||PEAK.B===l||PEAK.W===l)?' class="pk"':'';
+  const s=(v,k)=>v.toFixed(5)+(PEAK[k]===l?' ★':'');
+  return '<tr'+pk+'><td>'+l+'</td><td>'+s(D[l],'D')+'</td><td>'+s(B[l],'B')+'</td><td>'+s(W[l],'W')+'</td></tr>';
+}).join('');
+</script>
+</body>
+</html>
