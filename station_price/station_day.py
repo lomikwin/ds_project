@@ -1,4 +1,5 @@
 import requests
+import urllib
 
 s = requests.Session()
 url = "https://www.opinet.co.kr/user/opdown/opDownload.do"
@@ -14,4 +15,5 @@ nfl_url = ("https://nfl.opinet.co.kr/ts.wseq"
            "&sid=service_1&aid=B7&js=yes")
 
 r2 = s.get(nfl_url, timeout=15)
-print("nfl   :", r2.text)
+r2_url = r2.text.split('result=')[1]
+print(r2_url)
