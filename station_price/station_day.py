@@ -15,5 +15,5 @@ nfl_url = ("https://nfl.opinet.co.kr/ts.wseq"
            "&sid=service_1&aid=B7&js=yes")
 
 r2 = s.get(nfl_url, timeout=15)
-r2_url = r2.text.split('result=')[1]
+r2_url = r2.text.split('result=')[1].split("'")[1]
 print(r2_url)
