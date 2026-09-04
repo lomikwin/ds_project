@@ -40,5 +40,5 @@ dl_payload = {
 r3 = s.post(download_url, data=dl_payload, timeout=15)
 print("len:", len(r3.content))
 
-with open("/volume2/ds_project/station_price", "wb") as f:      
+with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
     f.write(r3.content)
