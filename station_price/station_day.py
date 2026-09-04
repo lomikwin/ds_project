@@ -37,7 +37,7 @@ dl_payload = {
     "netfunnel_key":netfunnel_key
 }
 
-r3 = s.post(dl_url, data=dl_payload, timeout=15)
+r3 = s.post(dl_url, data=download_url, timeout=15)
 print("len:", len(r3.content))
 
 with open("/volume2/ds_project/station_price", "wb") as f:      
