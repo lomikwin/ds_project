@@ -56,5 +56,5 @@ sql_df = duckdb.sql("""
         """
         )
 print(sql_df)
-"# with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
+# with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
 #     f.write(r3.content)
