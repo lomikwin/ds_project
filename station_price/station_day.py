@@ -3,7 +3,7 @@ from urllib.parse import parse_qs , parse_qsl
 import pandas as pd
 import io
 import duckdb
-
+from dotenv import load_dotenv , find_dotenv
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
