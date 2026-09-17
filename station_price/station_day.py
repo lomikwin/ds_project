@@ -4,6 +4,23 @@ import pandas as pd
 import io
 import duckdb
 
+
+# 1. 환경 변수 로드
+load_dotenv(find_dotenv())
+MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT') 
+MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
+MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
+
+
+#2. duckdb를 통한 s3 읽기 설정
+con = duckdb.connect()
+con.execute("INSTALL httpfs; LOAD httpfs;")
+con.execute(f"SET s3_endpoint='{MINIO_ENDPOINT}';")
+con.execute(f"SET s3_access_key_id='{MINIO_ACCESS_KEY}';")
+con.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
+con.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
+
+
 s = requests.Session()
 url = "https://www.opinet.co.kr/user/opdown/opDownload.do"
 payload = {
@@ -42,7 +59,7 @@ dl_payload = {
 
 r3 = s.post(download_url, data=dl_payload, timeout=15)
 df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
-sql_df = duckdb.sql("""
+sql_df = con.sql("""
         select  
         t1.번호 as uni_cd ,
         date_parse(t1.기간 ,  '%Y%m%d') as part_dt,
