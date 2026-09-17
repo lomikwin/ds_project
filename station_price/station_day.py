@@ -1,6 +1,8 @@
 import requests
 from urllib.parse import parse_qs , parse_qsl
 import pandas as pd
+import io
+
 s = requests.Session()
 url = "https://www.opinet.co.kr/user/opdown/opDownload.do"
 payload = {
@@ -38,9 +40,9 @@ dl_payload = {
 }
 
 r3 = s.post(download_url, data=dl_payload, timeout=15)
-print("len:", len(r3.content))
-csv = pd.read_csv ( r3, encoding = 'cp949')
-
+#print("len:", len(r3.content))
+df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949')
+print(df.head())
 
 # with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
 #     f.write(r3.content)
