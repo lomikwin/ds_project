@@ -72,7 +72,7 @@ sql_df = con.sql("""
         on t1.지역 = concat(t2.upper_nm , ' ' , t2.area_nm)
         and t2.area_depth = 2
         where 1=1
-        and t2.area_cd IS NOT NULL 
+        and t2.area_cd IS NULL 
         limit 5
         """
         )
