@@ -41,11 +41,20 @@ dl_payload = {
 }
 
 r3 = s.post(download_url, data=dl_payload, timeout=15)
-df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1,1])
+df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
 sql_df = duckdb.sql("""
-        select * from df limit 5
+        select  
+        t1.번호 as uni_cd ,
+        date_parse(t1.기간 ,  '%Y%m%d') as part_dt,
+        t2.area_cd
+        t1.지역 as area_nm
+        from df t1 
+        left join read_parquet('s3://petroleum-project/station_metadata/area_code/*.parquet') t2
+        on t1.지역 = concat(t2.upper_nm , ' ' , t2.area_nm)
+        and t2.area_depth = 2
+        limit 5
         """
         )
 print(sql_df)
-# with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
+"# with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
 #     f.write(r3.content)
