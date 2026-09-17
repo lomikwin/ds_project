@@ -46,7 +46,7 @@ sql_df = duckdb.sql("""
         select  
         t1.번호 as uni_cd ,
         date_parse(t1.기간 ,  '%Y%m%d') as part_dt,
-        t2.area_cd
+        t2.area_cd , 
         t1.지역 as area_nm
         from df t1 
         left join read_parquet('s3://petroleum-project/station_metadata/area_code/*.parquet') t2
