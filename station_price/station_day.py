@@ -71,6 +71,8 @@ sql_df = con.sql("""
         left join read_parquet('s3://petroleum-project/station_metadata/area_code/*.parquet') t2
         on t1.지역 = concat(t2.upper_nm , ' ' , t2.area_nm)
         and t2.area_depth = 2
+        where 1=1
+        and t2.area_cd IS NOT NULL 
         limit 5
         """
         )
