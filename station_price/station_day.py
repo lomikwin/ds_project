@@ -63,7 +63,8 @@ df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
 sql_df = con.sql("""
         select  
         t1.번호 as uni_cd ,
-        CAST(strptime(t1.기간 ,  '%Y%m%d') AS DATE) as part_dt,
+        CAST(strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d') AS DATE) as part_dt,
+        strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d')  as part_dt_timestamp,
         t2.area_cd , 
         t1.지역 as area_nm
         from df t1 
