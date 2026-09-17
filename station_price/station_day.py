@@ -61,6 +61,7 @@ dl_payload = {
 r3 = s.post(download_url, data=dl_payload, timeout=15)
 df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
 sql_df = con.sql("""
+        with step1 as (
         select  
         t1.번호 as uni_cd ,
         CAST(strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d') AS DATE) as part_dt,
@@ -73,7 +74,8 @@ sql_df = con.sql("""
         and t2.area_depth = 2
         where 1=1
         and t2.area_cd IS NULL 
-        limit 5
+        )
+        select distinct area_cd, area_nm from step1
         """
         )
 print(sql_df)
