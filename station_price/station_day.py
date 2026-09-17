@@ -2,6 +2,7 @@ import requests
 from urllib.parse import parse_qs , parse_qsl
 import pandas as pd
 import io
+import duckdb
 
 s = requests.Session()
 url = "https://www.opinet.co.kr/user/opdown/opDownload.do"
@@ -40,9 +41,11 @@ dl_payload = {
 }
 
 r3 = s.post(download_url, data=dl_payload, timeout=15)
-#print("len:", len(r3.content))
 df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1,1])
-print(df.head())
-
+sql_df = duckdb.sql("""
+        select * from df limit 5
+        """
+        )
+print(sql_df)
 # with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
 #     f.write(r3.content)
