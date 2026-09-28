@@ -64,8 +64,7 @@ sql_df = con.sql("""
         
         select 
         distinct 상표,
-        셀프여부,
-        상호
+        셀프여부
         from df
         """
         )
