@@ -62,8 +62,11 @@ r3 = s.post(download_url, data=dl_payload, timeout=15)
 df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
 sql_df = con.sql("""
         
-        describe df
-        
+        select 
+        distinct 상표,
+        셀프여부,
+        상호
+        from df
         """
         )
 print(sql_df)
