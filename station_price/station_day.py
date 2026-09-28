@@ -61,23 +61,12 @@ dl_payload = {
 r3 = s.post(download_url, data=dl_payload, timeout=15)
 df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
 sql_df = con.sql("""
-        with step1 as (
+        
         select  
-        t1.번호 as uni_cd ,
-        CAST(strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d') AS DATE) as part_dt,
-        strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d')  as part_dt_timestamp,
-        t2.area_cd , 
-        t1.지역 as area_nm
+        distinct is_self,
+        brand_cd
         from df t1 
-        left join read_parquet('s3://petroleum-project/station_metadata/area_code/*.parquet') t2
-        on t1.지역 = concat(t2.upper_nm , ' ' , t2.area_nm)
-        and t2.area_depth = 2
-        where 1=1
-        and t2.area_cd IS NULL 
-        )
-        select distinct area_cd, area_nm from step1
+        
         """
         )
 print(sql_df)
-# with open("/volume2/ds_project/station_price/tmp_station_day.csv", "wb") as f:      
-#     f.write(r3.content)
