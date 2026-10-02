@@ -124,7 +124,7 @@ def upload_to_minio(df):
                 FROM df
             )
             TO '{path}'
-            (FORMAT PARQUET, PARTITION_BY (part_dt), APPEND)
+            (FORMAT PARQUET, PARTITION_BY (part_dt), WRITE_PARTITION_COLUMNS true,  APPEND)
             
             """)
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
