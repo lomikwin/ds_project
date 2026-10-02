@@ -43,7 +43,7 @@ netfunnel_key = parse_qs(query_string)['key'][0]
 
 download_url = "https://www.opinet.co.kr/user/main/main_download_csv_big.do"
 
-#target_dt = "20260903"
+
 def download_csv ( stt_dt , end_dt):
     dl_payload = {
         "rdo1":"A", "rdo2":"A" , "rdo3":"A", "rdo4":"X",
@@ -53,7 +53,7 @@ def download_csv ( stt_dt , end_dt):
         "SIDO_NM": "시/도",
         "SIGUN_NM":"시/군/구",
         "API_GBN":"A",
-        "START_DT":stt_dt,
+        "START_DT":stt_dt, #target_dt = "20260903"
         "END_DT":end_dt,
         "SIDO_CD":"",
         "SIGUN_CD":"",
@@ -83,22 +83,33 @@ def download_csv ( stt_dt , end_dt):
             """
             ).df()
     return sql_df
+
 # 중복파티션 방지용 함수
-def drop_existing (df , stt_dt , end_dt ):
-    return con.sql(f"""
-       WITH existing_table AS (
-        SELECT DISTINCT part_dt, currency
-        FROM read_parquet('s3://petroleum-project/station_price/station_day/*/*.parquet')
-        WHERE part_dt BETWEEN strptime('{stt_dt}','%Y%m%d') AND strptime('{end_dt}' ,'%Y%m%d')    -- ★ 파티션 프루닝용
-       ) -- duckdb의 date_parse 문법 = strptime
-       SELECT
-       t1.*
-       FROM df t1
-       LEFT JOIN existing_table t2
-       ON t1.part_dt  = t2.part_dt
-       WHERE t2.part_dt IS NULL
+def drop_existing ( stt_dt , end_dt ):
+    stt_date = datetime.strptime(stt_dt, '%Y%m%d').strftime ('%Y-%m-%d')
+    end_date = datetime.strptime(end_dt, '%Y%m%d').strftime ('%Y-%m-%d')
+    
+    return con.sql (f"""
+    WITH expected AS (
+    SELECT CAST(generate_series AS DATE) AS part_dt
+    FROM generate_series(DATE '{stt_date}' , DATE '{end_date}' , INTERVAL 1 DAY)
+    )
+    , existing AS (
+    SELECT 
+    DISTINCT CAST(regexp_extract(file , 'part_dt=([0-9-]+)' , 1) AS DATE) as part_dt -- glob의 결과는 무조건 file, 그 이 file명에서는 part_dt=2026-09-01 이런식으로 되어잇틀테니 이걸 잘라낸다.
+    FROM glob('s3://petroleum-project/station_price/station_day/*/*.parquet') 
+    )
+    SELECT
+
+    strftime(expected.part_dt , '%Y%m%d') as part_dt
+    FROM expected
+    LEFT JOIN existing 
+    ON expected.part_dt = existing.part_dt
+    WHERE existing.part_dt IS NULL 
+    
     """
-    ).df()
+    ).fetchall()
+    
 
 def upload_to_minio(df):
     #7. 결과 분기 저장.
@@ -111,7 +122,7 @@ def upload_to_minio(df):
             
             con.sql(f"""
             COPY(
-                SELECT * REPLACE( part_dt)
+                SELECT * 
                 FROM df
             )
             TO '{path}'
@@ -138,9 +149,10 @@ if __name__ == "__main__":
         stt_dt = tg_dt.strftime('%Y%m%d')
         end_dt = tg_dt.strftime('%Y%m%d')
     try:
-        df_station_day = download_csv(stt_dt , end_dt )
-        df_station_day = drop_existing(df_station_day,stt_dt,end_dt)
-        upload_to_minio(df_station_day)
+        trial_list = drop_existing(stt_dt , end_dt)
+        for i in trial_list: #i는 튜플이다. i의 형태는 (20260901 , )  이런 느낌이다. 그래서  이중에 첫번째 인자 라는 것 선언해줘야 한다.
+            df_station_day = download_csv(i[0] , i[0] )
+            upload_to_minio(df_station_day)
         
         
     except Exception as e:
