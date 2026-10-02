@@ -1,17 +1,18 @@
 #time table for synology scheduler
-time,schedule_name,py_name,path,notes
-00:30,git hub auto pull,,,synchronizing codes with my github repository
-00:40,coordinates.validation_logs,validation_logs.py,/volume2/ds_project/coordinates,collect brute-force price data for preparing whitelist
-00:55,target,target.py,/volume2/ds_project/coordinates,refreshing whitelist for target coordinates
-01:00,price,price.py,/volume2/ds_project/national_avg,collecting daily average price of each fuels
-01:30,gasoline,gasoline.py,/volume2/ds_project/station_price,collect daily gasoline price by stations in Korea.
-01:45,diesel,diesel.py,/volume2/ds_project/station_price,collect daily diesel price by stations in Korea.
-02:00,premium_gasoline,premium_gasoline.py,/volume2/ds_project/station_price,collect daily premium gasoline price by stations in Korea.
-02:15,lpg,lpg.py,/volume2/ds_project/station_price,collect daily lpg price by stations in Korea.
-02:30,station_detail,station_detail.py,/volume2/ds_project/station_metadata,collect station meta data and update.
-03:00,macro_indicator,crude_oil_price.py,/volume2/ds_project/macro_indicator,collect crude oil price of previous day by KRW and USD.
-05:00,send_log_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of gasoline to telegram
-05:05,send_log_diesel,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of diesel to telegram
-05:10,send_log_premium_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of premium gasoline to telegram
-05:15,send_log_lpg,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of lpg to telegram
-06:00,agg,agg.py,/volume2/ds_project/station_price,creation of daily mart table aggregated by station.
+is_active,time,schedule_name,py_name,path,notes
+1,00:30,git hub auto pull,,,synchronizing codes with my github repository
+1,00:40,coordinates.validation_logs,validation_logs.py,/volume2/ds_project/coordinates,collect brute-force price data for preparing whitelist
+1,00:55,target,target.py,/volume2/ds_project/coordinates,refreshing whitelist for target coordinates
+1,01:00,price,price.py,/volume2/ds_project/national_avg,collecting daily average price of each fuels
+1,01:30,station_day,station_day.py,/volume2/ds_project/station_price,collect daily oil price by stations through Opinet web crawling 
+0,01:30,gasoline,gasoline.py,/volume2/ds_project/station_price,collect daily gasoline price by stations in Korea.
+0,01:45,diesel,diesel.py,/volume2/ds_project/station_price,collect daily diesel price by stations in Korea.
+0,02:00,premium_gasoline,premium_gasoline.py,/volume2/ds_project/station_price,collect daily premium gasoline price by stations in Korea.
+0,02:15,lpg,lpg.py,/volume2/ds_project/station_price,collect daily lpg price by stations in Korea.
+0,02:30,station_detail,station_detail.py,/volume2/ds_project/station_metadata,collect station meta data and update.
+0,05:00,send_log_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of gasoline to telegram
+0,05:05,send_log_diesel,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of diesel to telegram
+0,05:10,send_log_premium_gasoline,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of premium gasoline to telegram
+0,05:15,send_log_lpg,send_station_log.py,/volume2/ds_project/telegram_chatbot,send collect log of lpg to telegram
+0,06:00,agg,agg.py,/volume2/ds_project/station_price,creation of daily mart table aggregated by station.
+1,09:00,macro_indicator,crude_oil_price.py,/volume2/ds_project/macro_indicator,collect crude oil price of previous day by KRW and USD.
