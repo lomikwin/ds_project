@@ -66,8 +66,8 @@ def download_csv ( stt_dt , end_dt):
     sql_df = con.sql("""
             
             select 
-            t1.번호 AS uni_cd,
             CAST(strptime(CAST(t1.기간 AS VARCHAR) ,  '%Y%m%d') AS DATE) as part_dt,
+            t1.번호 AS uni_cd,
             t1.지역 AS area_nm,
             t1.상표 AS brand_nm,
             CASE WHEN t1.셀프여부 = '셀프' THEN TRUE WHEN t1.셀프여부 = '일반' THEN FALSE END AS is_self,
@@ -77,8 +77,6 @@ def download_csv ( stt_dt , end_dt):
             CAST(NULLIF(t1.실내등유 ,0) AS INT) AS kerosene,
             t1.상호 AS station_nm,
             t1.주소 AS addr
-
-
             from df t1
             """
             ).df()
@@ -122,7 +120,7 @@ def upload_to_minio(df):
             
             con.sql(f"""
             COPY(
-                SELECT * 
+                SELECT * REPLACE( CAST(part_dt AS DATE) AS part_dt)
                 FROM df
             )
             TO '{path}'
