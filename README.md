@@ -22,6 +22,9 @@ I don't want any contribution or discussion or any kind of feedback.
 
 ---
 
+(2026.10.29)직장 생활과 육아로 바쁜 시간을 쪼개서 이 프로젝트를 진행하는 과정 속에서 조금더 모델링에 집중하는 것이 좋다고 판단하여 일부 ETL 파이프라인 부분에서는 바이브코딩을 도입하게 되었습니다.
+---
+
 ## Current Stage
 
 OPINET API → MinIO (Parquet) → DuckDB ETL 파이프라인 자체 구축.

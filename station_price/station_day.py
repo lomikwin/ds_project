@@ -6,6 +6,7 @@ import duckdb
 import os
 from dotenv import load_dotenv , find_dotenv
 from datetime import datetime, timedelta
+import time
 
 # 1. 환경 변수 로드
 load_dotenv(find_dotenv())
@@ -23,28 +24,58 @@ con.execute(f"SET s3_secret_access_key='{MINIO_SECRET_KEY}';")
 con.execute("SET s3_url_style='path'; SET s3_use_ssl='false';")
 
 
-s = requests.Session()
 url = "https://www.opinet.co.kr/user/opdown/opDownload.do"
 payload = {
     "netfunnel_key": "",
     "opinet_key": "6qdFLpmi7zDOTaXPM8sWPCH2brugOXBbGUOD5s2BzzQ=",
 }
 
-r = s.post(url,data=payload,timeout=15)
-
 nfl_url = ("https://nfl.opinet.co.kr/ts.wseq"
            "?opcode=5101&nfid=0&prefix=NetFunnel.gRtype=5101;"
            "&sid=service_1&aid=B7&js=yes")
 
-r2 = s.get(nfl_url, timeout=15)
-_, status_code ,  query_string = r2_chunk = r2.text.split('result=')[1].split("'")[1].split(":",2)
-
-netfunnel_key = parse_qs(query_string)['key'][0]
+# 201 대기 폴링 (8/18 검증: 2초 간격, 실측 12~20초 만에 200 전환. 표는 재발급하지 않는다)
+nfl_poll_url = ("https://nfl.opinet.co.kr/ts.wseq"
+                "?opcode=5002&key={key}&nfid=0&prefix=NetFunnel.gRtype=5002;"
+                "&sid=service_1&aid=B7&js=yes&{ts}")
+POLL_INTERVAL = 2   # 초
+POLL_MAX = 60       # 최대 60회 = 2분
 
 download_url = "https://www.opinet.co.kr/user/main/main_download_csv_big.do"
 
 
+# 넷퍼널 응답 3층 벗기기: JS → '5002:200:key=...' → query string
+def parse_nfl ( text ):
+    _, status_code , query_string = text.split('result=')[1].split("'")[1].split(":",2)
+    return status_code , parse_qs(query_string)['key'][0]
+
+
+# 묶음마다 새로 부른다: 세션(방문증) → 번호표 → 201이면 200 될 때까지 대기
+def get_session_and_key ():
+    s = requests.Session()
+    s.post(url, data=payload, timeout=15)
+
+    r2 = s.get(nfl_url, timeout=15)
+    status_code , netfunnel_key = parse_nfl(r2.text)
+
+    poll_cnt = 0
+    while status_code == '201':
+        if poll_cnt >= POLL_MAX:
+            raise RuntimeError(f"넷퍼널 대기 {POLL_MAX * POLL_INTERVAL}초 초과 (201 유지)")
+        time.sleep(POLL_INTERVAL)
+        r_poll = s.get(nfl_poll_url.format(key=netfunnel_key, ts=int(time.time() * 1000)), timeout=15)
+        status_code , _ = parse_nfl(r_poll.text)
+        poll_cnt += 1
+
+    if status_code != '200':
+        raise RuntimeError(f"넷퍼널 예상 밖 코드: {status_code}")
+    if poll_cnt > 0:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] : 넷퍼널 201 대기 {poll_cnt * POLL_INTERVAL}초 후 입장")
+    return s , netfunnel_key
+
+
 def download_csv ( stt_dt , end_dt):
+    s , netfunnel_key = get_session_and_key()
     dl_payload = {
         "rdo1":"A", "rdo2":"A" , "rdo3":"A", "rdo4":"X",
         "LPG_CD":"A",
@@ -61,7 +92,14 @@ def download_csv ( stt_dt , end_dt):
     }
 
 
-    r3 = s.post(download_url, data=dl_payload, timeout=15)
+    r3 = s.post(download_url, data=dl_payload, timeout=60) # 7일치는 하루치의 7배라 넉넉히
+
+    # CSV 대신 HTML이 오는 경우 (777B error.jsp = 번호표 없음/대기 상태, 10/7 크론 실패도 이 계열)
+    # → 파싱 에러(Binder Error: no column "기간") 대신 받은 내용 앞부분을 남기고 실패
+    head = r3.content[:200].decode('cp949', errors='replace')
+    if head.lstrip().startswith('<'):
+        raise RuntimeError(f"CSV 대신 HTML 수신 ({len(r3.content)}B): {head[:120]!r}")
+
     df = pd.read_csv ( io.BytesIO(r3.content), encoding = 'cp949', skiprows = [1])
     sql_df = con.sql("""
             
@@ -82,32 +120,49 @@ def download_csv ( stt_dt , end_dt):
             ).df()
     return sql_df
 
-# 중복파티션 방지용 함수
-def drop_existing ( stt_dt , end_dt ):
+# 빠진 날(주유소 0곳) → 연속 구간(섬)으로 묶기 → 섬마다 7일씩 쪼개기
+# 반환: [('20261020', '20261026'), ('20261027', '20261030'), ...]  (chunk_start, chunk_end)
+def find_missing_chunks ( stt_dt , end_dt ):
     stt_date = datetime.strptime(stt_dt, '%Y%m%d').strftime ('%Y-%m-%d')
     end_date = datetime.strptime(end_dt, '%Y%m%d').strftime ('%Y-%m-%d')
-    
-    return con.sql (f"""
-    WITH expected AS (
-    SELECT CAST(generate_series AS DATE) AS part_dt
-    FROM generate_series(DATE '{stt_date}' , DATE '{end_date}' , INTERVAL 1 DAY)
-    )
-    , existing AS (
-    SELECT 
-    DISTINCT CAST(regexp_extract(file , 'part_dt=([0-9-]+)' , 1) AS DATE) as part_dt -- glob의 결과는 무조건 file, 그 이 file명에서는 part_dt=2026-09-01 이런식으로 되어잇틀테니 이걸 잘라낸다.
-    FROM glob('s3://petroleum-project/station_price/station_day/*/*.parquet') 
-    )
-    SELECT
 
-    strftime(expected.part_dt , '%Y%m%d') as part_dt
-    FROM expected
-    LEFT JOIN existing 
-    ON expected.part_dt = existing.part_dt
-    WHERE existing.part_dt IS NULL 
-    
+    return con.sql (f"""
+    WITH series as (
+    SELECT CAST(generate_series AS DATE) AS part_dt
+    FROM generate_series(DATE '{stt_date}', DATE '{end_date}', INTERVAL 1 DAY)
+    )
+    , step1 as (
+    select
+    t1.part_dt
+    , count(t2.uni_cd) as daily_uni_cnt
+    from series t1
+    left join read_parquet('s3://petroleum-project/station_price/station_day/*/*') t2
+    on t1.part_dt = t2.part_dt
+    group by 1
+    )
+    , step2 as ( -- 섬 이름표: 연속된 날은 (날짜 - 번호)가 같다
+    select
+    t1.part_dt
+    , t1.part_dt - cast(row_number() over (order by part_dt) as INT) as group_key
+    from step1 t1
+    where daily_uni_cnt = 0
+    )
+    , step3 as ( -- 섬마다 눈금 리셋, 0부터 7칸씩
+    select
+    t1.group_key
+    , t1.part_dt
+    , t1.part_dt - cast(mod(row_number() over (partition by t1.group_key order by part_dt) - 1, 7) as INT) as group_key_2
+    from step2 t1
+    )
+    select
+    strftime(min(t1.part_dt), '%Y%m%d') as chunk_start
+    , strftime(max(t1.part_dt), '%Y%m%d') as chunk_end
+    from step3 t1
+    group by t1.group_key, t1.group_key_2
+    order by chunk_start
     """
     ).fetchall()
-    
+
 
 def upload_to_minio(df):
     #7. 결과 분기 저장.
@@ -133,7 +188,8 @@ def upload_to_minio(df):
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
             " 수집된 주유소 가격 정보가 없습니다. 업로드를 건너뜁니다------")
     except Exception as e:
-        print(f" [에러] 작업 중 오류 발생: {e}")
+        print(f" [에러] 업로드 중 오류 발생: {e}")
+        raise  # 루프가 이 묶음을 실패로 셀 수 있게 위로 올려보낸다
 
 
 if __name__ == "__main__":
@@ -142,16 +198,33 @@ if __name__ == "__main__":
         stt_dt = sys.argv[1]
         end_dt = sys.argv[2]
     else:
-        now= datetime.now()  #오늘날짜 
-        tg_dt = now  - timedelta(days=1) #이 날짜는 사실 전일자가 되어야 함. 이 코드는 매일 새벽에 돌 것이고 전일자를 수집하는 것이 목표
-        stt_dt = tg_dt.strftime('%Y%m%d')
-        end_dt = tg_dt.strftime('%Y%m%d')
+        now= datetime.now()  #오늘날짜
+        # 크론 기본값: 최근 7일(어제 포함)을 훑는다. 어제만 보면 하루 실패가 영영 남지만,
+        # 7일을 보면 다음 날 크론이 빠진 날을 알아서 다시 채운다 (자가복구)
+        stt_dt = (now - timedelta(days=7)).strftime('%Y%m%d')
+        end_dt = (now - timedelta(days=1)).strftime('%Y%m%d')
+
+    def log(msg):
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] : {msg}", flush=True)
+
     try:
-        trial_list = drop_existing(stt_dt , end_dt)
-        for i in trial_list: #i는 튜플이다. i의 형태는 (20260901 , )  이런 느낌이다. 그래서  이중에 첫번째 인자 라는 것 선언해줘야 한다.
-            df_station_day = download_csv(i[0] , i[0] )
-            upload_to_minio(df_station_day)
-        
-        
+        chunk_list = find_missing_chunks(stt_dt , end_dt)
     except Exception as e:
-        print(f" [에러] 작업 중 오류 발생: {e}")
+        log(f"[에러] 빠진 날 조회 실패: {e}")
+        sys.exit(1)
+
+    log(f"[{stt_dt} ~ {end_dt}] 빠진 묶음 {len(chunk_list)}개: {chunk_list}")
+
+    fail_list = []
+    for chunk_start , chunk_end in chunk_list:
+        try:
+            df_station_day = download_csv(chunk_start , chunk_end)
+            upload_to_minio(df_station_day)
+        except Exception as e:  # 한 묶음이 실패해도 다음 묶음은 계속 (다음 크론이 다시 채운다)
+            log(f"[에러] {chunk_start} ~ {chunk_end} 실패: {e}")
+            fail_list.append((chunk_start , chunk_end))
+        time.sleep(3)  # 묶음 사이 숨 고르기 (넷퍼널 대기열 자극 줄이기)
+
+    log(f"완료: 성공 {len(chunk_list) - len(fail_list)} / 실패 {len(fail_list)} {fail_list}")
+    if fail_list:
+        sys.exit(1)
