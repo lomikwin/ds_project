@@ -58,19 +58,21 @@ def get_session_and_key ():
     r2 = s.get(nfl_url, timeout=15)
     status_code , netfunnel_key = parse_nfl(r2.text)
 
+    poll_key = netfunnel_key
     poll_cnt = 0
     while status_code == '201':
         if poll_cnt >= POLL_MAX:
             raise RuntimeError(f"넷퍼널 대기 {POLL_MAX * POLL_INTERVAL}초 초과 (201 유지)")
         time.sleep(POLL_INTERVAL)
         r_poll = s.get(nfl_poll_url.format(key=netfunnel_key, ts=int(time.time() * 1000)), timeout=15)
-        status_code , _ = parse_nfl(r_poll.text)
+        status_code , poll_key = parse_nfl(r_poll.text)  # 관찰용: 다운로드엔 처음 키를 그대로 쓴다 (8/18 검증 방식)
         poll_cnt += 1
 
     if status_code != '200':
         raise RuntimeError(f"넷퍼널 예상 밖 코드: {status_code}")
     if poll_cnt > 0:
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] : 넷퍼널 201 대기 {poll_cnt * POLL_INTERVAL}초 후 입장")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] : 넷퍼널 201 대기 {poll_cnt * POLL_INTERVAL}초 후 입장"
+              f" (폴링 응답 키: 처음 키와 {'다름' if poll_key != netfunnel_key else '같음'})", flush=True)
     return s , netfunnel_key
 
 
@@ -223,7 +225,12 @@ if __name__ == "__main__":
     fail_list = []
     for chunk_start , chunk_end in chunk_list:
         try:
-            df_station_day = download_csv(chunk_start , chunk_end)
+            try:
+                df_station_day = download_csv(chunk_start , chunk_end)
+            except RuntimeError as e:  # HTML 수신·넷퍼널 이상 → 새 번호표로 한 번만 더
+                log(f"[재시도] {chunk_start} ~ {chunk_end}: {e}")
+                time.sleep(10)
+                df_station_day = download_csv(chunk_start , chunk_end)
             upload_to_minio(df_station_day)
         except Exception as e:  # 한 묶음이 실패해도 다음 묶음은 계속 (다음 크론이 다시 채운다)
             log(f"[에러] {chunk_start} ~ {chunk_end} 실패: {e}")
