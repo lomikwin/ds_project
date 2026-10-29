@@ -171,7 +171,11 @@ def upload_to_minio(df):
             
             table_name = "station_day"
             path = f"s3://petroleum-project/station_price/{table_name}/"
-            min_dt , max_dt , cnt =  con.sql ("SELECT min(part_dt), max(part_dt), count(distinct uni_cd) from df").fetchone()
+            # 일별 주유소 수의 최소~최대: 7일 중 하루만 비정상인 날을 로그에서 바로 보이게
+            min_dt , max_dt , day_cnt , row_cnt , min_cnt , max_cnt = con.sql ("""
+                SELECT min(part_dt), max(part_dt), count(*), sum(cnt), min(cnt), max(cnt)
+                FROM (SELECT part_dt, count(distinct uni_cd) AS cnt FROM df GROUP BY part_dt)
+            """).fetchone()
             
             con.sql(f"""
             COPY(
@@ -183,7 +187,8 @@ def upload_to_minio(df):
             
             """)
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
-            f"[{min_dt.strftime('%Y%m%d')} ~ {max_dt.strftime('%Y%m%d')}] 의 {cnt}개의 주유소의 가격 정보를 수집하여 저장합니다.")
+            f"[{min_dt.strftime('%Y%m%d')} ~ {max_dt.strftime('%Y%m%d')}] {day_cnt}일, {row_cnt:,}행, "
+            f"일별 주유소 {min_cnt:,} ~ {max_cnt:,}곳 저장")
         else:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] :"
             " 수집된 주유소 가격 정보가 없습니다. 업로드를 건너뜁니다------")
